@@ -64,8 +64,8 @@ exam_data %>%
   geom_bar()+
   ylim(0,220) +
   geom_text(stat="count", 
-      aes(label=paste0(..count.., ", ", 
-      round(..count../sum(..count..)*100,
+      aes(label=paste0(after_stat(count), ", ", 
+      round(after_stat(count)/sum(after_stat(count))*100,
             1), "%")),
       vjust=-1) +
   xlab("Race") +
