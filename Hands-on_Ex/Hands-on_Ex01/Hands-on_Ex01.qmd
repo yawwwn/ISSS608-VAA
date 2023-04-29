@@ -22,7 +22,53 @@ exam_data <- read_csv("data/Exam_data.csv")
 # Plotting a simple bar chart
 
 ```{r}
-ggplot(data = exam_data,
-       aes( x = RACE)) +
+ggplot(data = exam_data, aes( x = RACE)) +
   geom_bar()
+```
+
+## Horizontal Bar Chart with theme
+
+```{r}
+ggplot(data = exam_data, aes( x = RACE)) +
+  geom_bar() +
+  coord_flip() +
+  theme_minimal() +
+  theme(
+    panel.background = element_rect(fill = "lightblue", color = "lightblue",
+                                    linewidth = 0.5, linetype = "solid"),
+    panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', colour = "white"), 
+    panel.grid.minor = element_line(linewidth = 0.25, linetype = 'solid', colour = "white"))
+```
+
+## In-Class Exercise (Makeover #1)
+
+```{r}
+ggplot(data = exam_data, aes(x=reorder(RACE,RACE,
+                     function(x)-length(x)))) +
+  geom_bar() +
+  ylim(0,220) +
+  geom_text(stat="count", 
+      aes(label=paste0(after_stat(count), ", ", 
+      round(after_stat(count)/sum(after_stat(count))*100, 1), "%")),
+      vjust=-1) +
+  xlab("Race") +
+  ylab("No. of\npupils")+
+  theme(axis.title.y=element_text(angle = 0))
+```
+## In-Class Exercise fct_infre()
+
+```{r}
+exam_data %>%
+  mutate(RACE = fct_infreq(RACE)) %>%
+  ggplot(aes(x = RACE)) + 
+  geom_bar()+
+  ylim(0,220) +
+  geom_text(stat="count", 
+      aes(label=paste0(..count.., ", ", 
+      round(..count../sum(..count..)*100,
+            1), "%")),
+      vjust=-1) +
+  xlab("Race") +
+  ylab("No. of\nPupils") +
+  theme(axis.title.y=element_text(angle = 0))
 ```
