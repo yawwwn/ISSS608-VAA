@@ -1,7 +1,7 @@
 {
-  "hash": "d35c89a8572130c39bbfc479379bbdc5",
+  "hash": "641e1b5d98d5a18f987f42b0cd044e62",
   "result": {
-    "markdown": "---\ntitle: \"ISSS608-VAA\"\n---\n\n\nThis is a Quarto website.\n\nTo learn more about Quarto websites visit <https://quarto.org/docs/websites>.\n\n\n::: {.cell}\n\n```{.r .cell-code}\n1 + 1\n```\n\n::: {.cell-output .cell-output-stdout}\n```\n[1] 2\n```\n:::\n:::\n",
+    "markdown": "---\ntitle: \"ISSS608-VAA\"\n---\n\n\nWelcome to **ISSS608 Visual Analytics and Applications**. In this website, you will find my coursework prepared for this course.\n\n\n::: {.cell}\n\n```{.r .cell-code}\n1 + 1\n```\n\n::: {.cell-output .cell-output-stdout}\n```\n[1] 2\n```\n:::\n:::\n",
     "supporting": [],
     "filters": [
       "rmarkdown/pagebreak.lua"
