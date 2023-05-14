@@ -1,0 +1,543 @@
+---
+title: "Take Home Exercise 1"
+subtitle: "Visual Analytics of City of Engagement"
+author: "Thng Yao Wen"
+date: 2023-05-05
+date-modified: "`r Sys.Date()`"
+format:
+  html:
+    code-fold: true
+    code-summary: "Show the code"
+execute: 
+  echo: true
+  results: "hide" 
+  warning: false
+---
+
+# 1. Overview
+
+City of Engagement, with a total population of 50,000, is a small city located at Country of Nowhere. The city serves as a service centre of an agriculture region surrounding the city. The main agriculture of the region is fruit farms and vineyards. The local council of the city is in the process of preparing the Local Plan 2023. A sample survey of 1000 representative residents had been conducted to collect data related to their household demographic and spending patterns, among other things. The city aims to use the data to assist with their major community revitalization efforts, including how to allocate a very large city renewal grant they have recently received.
+
+The task is to reveal the demographic and financial characteristics of the city of Engagement by using appropriate **static and interactive statistical graphics** methods, using `ggplot2`, its extensions, as well as `tidyverse` family of packages.
+
+# 2. Data
+
+For the purpose of this study, two data sets are provided.
+
+[**Participants.csv**]{.underline}
+
+| participants | Col2 | Col3 |
+|--------------|------|------|
+|              |      |      |
+|              |      |      |
+|              |      |      |
+
+# 3. Data Preparation
+
+## 3.1 Install R Packages
+
+```{r}
+pacman::p_load(ggstatsplot, tidyverse, ggthemes, plotly, corrplot, lubridate, ggpubr, ggrepel, gganimate, ggrepel, knitr, ggridges, ggdist, reshape2, ggstatsplot, treemap, ggiraph, patchwork,cowplot, waffle,ggiraphExtra)
+```
+
+## 3.2 Loading data
+
+```{r}
+participants <- read_csv("data/Participants.csv")
+fin_journal <- read_csv("data/FinancialJournal.csv")
+```
+
+### 3.2.1 Participants Data
+
+```{r}
+participants
+```
+
+```{r}
+any(is.na(participants))
+```
+
+```{r}
+# Convert in to factors
+col <- c("haveKids","educationLevel","interestGroup", "householdSize")
+participants <- participants %>%
+  mutate_at(col, as.factor) %>%
+  mutate(participantId = as.character(participantId))
+
+# Define the custom order of education levels
+custom_order <- c("Low", "HighSchoolOrCollege", "Bachelors", "Graduate")
+
+# Convert educationLevel to a factor with custom order
+participants$educationLevel <- factor(participants$educationLevel, levels = custom_order)
+```
+
+```{r}
+participants
+```
+
+### 3.2.2 FinancialJournal Data
+
+```{r}
+fin_journal
+```
+
+```{r}
+any(is.na(fin_journal))
+```
+
+Duplicate check
+
+```{r}
+duplicates <- duplicated(fin_journal)
+```
+
+```{r}
+distinct_months <- unique(fin_journal[duplicates, "timestamp"])
+distinct_months
+```
+
+Since all of the duplicated data belongs to the same month, there's reason to believe they are genuine duplicates.
+
+Remove duplicates
+
+```{r}
+fin_journal_clean <- distinct(fin_journal) %>%
+  mutate(timestamp = floor_date(timestamp, "month")) %>%
+  mutate(timestamp = as.Date(timestamp)) %>%
+  mutate(participantId = as.character(participantId))
+fin_journal_clean
+```
+
+#### 3.2.2.1 Non-pivot Data
+
+Creating new variables
+
+```{r}
+fin_journal_final <- fin_journal_clean %>%
+  mutate(category_type = ifelse(amount >= 0, "Income", "Expenses"))
+fin_journal_final
+```
+
+```{r}
+combined_data <- left_join(fin_journal_final, participants, by = "participantId")
+combined_data
+```
+
+#### 3.2.2.2 Pivot Data
+
+```{r}
+##retry
+fin_journal_clean
+fin_journal_pivot_test <- fin_journal_clean %>%
+  group_by(participantId, category) %>%
+  summarize(total_amount = sum(amount))%>%
+  pivot_wider(
+    id_cols = c(participantId),
+    names_from = category,
+    values_from = total_amount
+  ) %>%
+  mutate(across(where(is.numeric), ~if_else(is.na(.), 0, .))) %>%
+  
+  ##Sum total expenses and convert to absolute value
+  mutate(total_expenses = abs(Education + Food + Recreation + Shelter)) %>%
+  mutate(total_income = RentAdjustment + Wage) %>%
+  mutate(Expense_ratio = total_expenses/total_income)
+fin_journal_pivot_test
+```
+
+```{r}
+fin_journal_pivot <- fin_journal_clean %>%
+  group_by(participantId, timestamp, category) %>%
+  summarize(total_amount = sum(amount)) %>%
+  pivot_wider(
+    id_cols = c(participantId, timestamp),
+    names_from = category,
+    values_from = total_amount
+  ) %>%
+  mutate(across(where(is.numeric), ~if_else(is.na(.), 0, .)))
+fin_journal_pivot
+```
+
+```{r}
+# Calculate the expected number of months based on the total number of unique months in the dataset
+expected_months <- n_distinct(fin_journal_pivot$timestamp)
+expected_months
+
+# Group the data by participantId and calculate the actual number of months for each participant
+participant_months <- fin_journal_pivot %>%
+  group_by(participantId) %>%
+  summarize(actual_months = n_distinct(timestamp))
+
+# Identify participants with missing data
+missing_participants <- participant_months %>%
+  filter(actual_months != expected_months)
+missing_participants
+#participant_months
+```
+
+```{r}
+fin_journal_pivot_final <- fin_journal_pivot %>%
+  anti_join(missing_participants, by = "participantId")
+#kable(fin_journal_final, "simple")
+```
+
+```{r}
+fin_journal_pivot_final <- fin_journal_pivot_final %>%
+  select(-matches("timestamp")) %>%
+  group_by(participantId) %>%
+  summarize_at(vars(Education:RentAdjustment),sum) %>%
+  ##Sum total expenses and convert to absolute value
+  mutate(total_expenses = abs(Education + Food + Recreation + Shelter)) %>%
+  mutate(total_income = RentAdjustment + Wage) %>%
+  mutate(Expense_ratio = total_expenses/total_income)
+fin_journal_pivot_final
+```
+
+```{r}
+No_of_participants <- n_distinct(fin_journal_pivot_final$participantId)
+No_of_participants
+```
+
+join dataset
+
+```{r}
+combined_pivot_data <- left_join(fin_journal_pivot_final, participants, by = "participantId")
+combined_pivot_data
+
+```
+
+## 3.3 Summary of Data
+
+There are a total of 1,011 participants interviewed. Below list the summary statistics for each of the variables.
+
+```{r}
+#quantitative columns to describe
+sel_col <- c("householdSize", "age", "joviality")
+#filter dataset
+sel_data <- participants %>%
+  select(all_of(sel_col))
+psych::describe(sel_data)
+```
+
+# 4. Data Viz
+
+## 4.1 Demographics
+
+::: panel-tabset
+## Age
+```{r}
+plot <- ggplot(combined_pivot_data, 
+       aes(x = age)) +
+  geom_histogram(binwidth = 5, 
+                 fill = "lightblue", 
+                 color = "black") +
+  labs(x = "Age", y = "Count") +
+  ggtitle("Distribution of Age") +
+  theme_minimal() 
+
+print(plot)
+print(as.data.frame(psych::describe(combined_pivot_data$age)))
+
+```
+
+## Family Size
+```{r}
+# Calculate the count and percentage
+participants_count <- combined_pivot_data %>%
+  group_by(householdSize) %>%
+  summarize(
+    count = n()
+  ) %>% 
+  mutate(
+    householdSize = factor(householdSize),  # Convert to factor
+    householdSize_pct = round(count/sum(count)*100)
+  )
+
+# Choose a color palette
+color_palette <- scales::brewer_pal(type = "qual")(length(unique(participants_count$householdSize)))
+
+# Create the pie chart using ggplot2
+pie_chart <- ggplot(participants_count, aes(x = "", y = householdSize_pct, fill = householdSize)) +
+  geom_bar(stat = "identity", width = 1, color = "white") +
+  coord_polar(theta = "y") +
+  scale_fill_manual(values = color_palette) +
+  geom_text(aes(label = paste0(householdSize_pct, "%")), position = position_stack(vjust = 0.5), color = "white") +
+  labs(title = "Proportion of Flat Types in Singapore") +
+  theme_void() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Display the pie chart
+pie_chart
+
+```
+## Financial Behavior
+```{r}
+
+average_participant <- combined_pivot_data %>%
+  summarize(
+    FoodExpenses = abs(mean(Food)),
+    ShelterExpenses = abs(mean(Shelter)),
+    EducationExpenses = abs(mean(Education)),
+    RecreationExpenses = abs(mean(Recreation)),
+    Savings = mean(Wage + RentAdjustment - abs(`Food` + `Shelter`))
+  )
+
+# Calculate the proportions of expenses and savings
+expenses <- c(average_participant$FoodExpenses, average_participant$ShelterExpenses,average_participant$EducationExpenses, average_participant$RecreationExpenses )
+savings <- average_participant$Savings
+total <- sum(expenses, savings)
+expenses_prop <- expenses / total
+savings_prop <- savings / total
+
+# Create a data frame for waffle chart
+waffle_data <- data.frame(
+  category = c("Food Expenses", "Shelter Expenses", "Education", "Recreation", "Savings"),
+  total = c(expenses,savings),
+  proportion = c(expenses_prop, savings_prop)
+)
+
+legend_labels <- c("Food Expenses", "Shelter Expenses", "Education", "Recreation", "Savings")
+
+waffle_chart <- waffle(waffle_data$proportion*100, rows = 10, size = 1,
+                       colors = c("#F8766D", "#7CAE00", "#00BFC4", "#C77CFF", "#FFB621"),
+                       title = "Average Participant Financial Breakdown",
+                       pad = 0.3)
+waffle_chart
+
+
+```
+## Education Level
+```{r}
+# Calculate the count for each education level
+education_count <- combined_pivot_data %>%
+  group_by(educationLevel) %>%
+  summarize(count = n())
+
+# Order the education levels by count
+education_count <- education_count[order(education_count$count, decreasing = TRUE), ]
+
+# Create the stacked bar chart using ggplot2
+stacked_bar_chart <- ggplot(education_count, aes(x = "", y = count, fill = educationLevel, tooltip = count)) +
+  geom_bar_interactive(stat = "identity", width = 1, color = "white") +
+  coord_flip() +
+  scale_fill_viridis_d() +
+  labs(title = "Education Level Breakdown",
+       x = NULL, y = "Count") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Display the stacked bar chart
+girafe(ggobj = stacked_bar_chart,
+       width_svg = 6,
+  height_svg = 6*0.618)
+
+```
+## Have Kids
+
+```{r}
+ggplot(data=combined_pivot_data, 
+       aes(x=haveKids)) +
+  geom_bar()
+```
+## Overall Income & Expenses
+```{r}
+p1 <- ggplot(data=combined_pivot_data, 
+             aes(x = total_income)) +
+  geom_histogram(bins = 20, 
+                 #boundary = 100,
+                 color="grey25", 
+                 fill="grey90") + 
+  ggtitle("Distribution of Annual Income")
+
+p2 <- ggplot(data=combined_pivot_data, 
+             aes(x = total_expenses)) +
+  geom_histogram(bins = 20, 
+                 #boundary = 100,
+                 color="grey25", 
+                 fill="grey90") + 
+  ggtitle("Distribution of Annual Expenses")
+
+p3 <- ggplot(data=combined_pivot_data, 
+             aes(x = Expense_ratio)) +
+  geom_histogram(bins = 20, 
+                 #boundary = 100,
+                 color="grey25", 
+                 fill="grey90") + 
+  #coord_cartesian(xlim=c(0,100)) +
+  ggtitle("Distribution of Annual Expenses")
+
+patchwork <- (p1 / p2) | p3
+patchwork & theme_economist()
+
+```
+:::
+
+## Exploratory Data Sets
+
+::: panel-tabset
+## Education Level vs Wage
+```{r}
+combined_pivot_data <- combined_pivot_data %>%
+  mutate(AgeGroup = cut(age, breaks = c(0,20, 30, 40, 50, 60), labels = c("<20", "20-30", "30-40", "40-50", "50-60")))
+
+ggplot(combined_pivot_data, 
+       aes(y = educationLevel, 
+           x = Wage, 
+           fill = after_stat(x))) +
+  geom_density_ridges_gradient(scale = 3, 
+                      alpha = 0.8
+                      ) +
+  scale_fill_viridis_c(name = "Wage",
+                       option = "turbo") +
+  labs(x = "Wage", 
+       y = "Education Level", 
+       title = "Distribution of Wage by Education Level at Age Group {closest_state}") +
+  
+  theme(legend.position="none",
+  text = element_text(family = "Garamond"),
+  plot.title = element_text(face = "bold", size = 12),
+  axis.title.x = element_text(size = 10, hjust = 1),
+  axis.title.y = element_text(size = 10),
+  axis.text = element_text(size = 8)) +
+  
+  transition_states(combined_pivot_data$AgeGroup, transition_length = 0, state_length = 1)+
+  theme_minimal()
+```
+
+## Household Size vs Expenses
+```{r}
+ggplot(combined_pivot_data, 
+       aes(y = householdSize,
+           x = total_expenses, 
+           fill = after_stat(x))) +
+  geom_density_ridges_gradient(scale = 3, 
+                      alpha = 0.8
+                      ) +
+  scale_fill_viridis_c(name = "Expenses",
+                       option = "turbo") +
+  labs(x = "Expenses", 
+       y = "Household Size", 
+       title = "Distribution of Expenses by Household Size at Age Group {closest_state}") +
+  
+  theme(legend.position="none",
+  text = element_text(family = "Garamond"),
+  plot.title = element_text(face = "bold", size = 12),
+  axis.title.x = element_text(size = 10, hjust = 1),
+  axis.title.y = element_text(size = 10),
+  axis.text = element_text(size = 8)) +
+  
+  transition_states(combined_pivot_data$AgeGroup, transition_length = 0, state_length = 1)+
+  theme_minimal()
+```
+:::
+
+## Interactive Scatter Plot
+
+```{r}
+#Initiating the base plot
+plot_ly(data = combined_pivot_data,
+        x = ~total_income,
+        y = ~joviality,
+        hovertemplate = ~paste("<br>Total Income", total_income,
+                               "<br>Total Expenses:", total_expenses,
+                               "<br>Joviality Score:", joviality),
+        type = 'scatter',
+        mode = 'markers',
+        marker = list(opacity = 0.6,
+                      sizemode = 'diameter',
+                      line = list(width = 0.2, color = 'white'))) |> 
+
+#Generating plot, x-axis, and y-axis title
+  layout(title = "Interactive scatterplot of participants' Total Annual Income vs Joviality Score",
+         xaxis = list(title = "Total Annual Inncome"),
+         yaxis = list(title = "Joviality Score"),
+         
+#creating dropwdown menus to allow selection of parameters on x-axis and y-axis 
+         updatemenus = list(list(type = "dropdown",
+                                 direction = "up",
+                                 xref = "paper",
+                                 yref = "paper",
+                                 xanchor = "left",
+                                 yanchor = "top",
+                                 x = 1,
+                                 y = 0,
+                                 buttons = list(
+                                   list(method = "update",
+                                        args = list(list(x = list(combined_pivot_data$total_income)),
+                                                    list(xaxis = list(title = "Total Annual Income"))),
+                                        label = "Annual Income"),
+                                   list(method = "update",
+                                        args = list(list(x = list(combined_pivot_data$total_expenses)),
+                                                    list(xaxis = list(title = "Total Annual Expenses"))),
+                                        label = "Annual Expenses"),
+                                   list(method = "update",
+                                        args = list(list(x = list(abs(combined_pivot_data$Recreation))),
+                                                    list(xaxis = list(title = "Recreation Expenses"))),
+                                        label = "Recreation Expenses"),
+                                   list(method = "update",
+                                        args = list(list(x = list(combined_pivot_data$Expense_ratio)),
+                                                    list(xaxis = list(title = "Expense Ratio"))),
+                                        label = "Expense Ratio"),
+                                   list(method = "update",
+                                        args = list(list(x = list(combined_pivot_data$age)),
+                                                    list(xaxis = list(title = "Age"))),
+                                        label = "Age")   
+                                   )
+                                 )
+                            )
+         )
+
+```
+
+## Interactive Boxplot
+
+```{r}
+#Initiating the base plot
+plot_ly(data = combined_pivot_data,
+        x = ~AgeGroup,
+        y = ~joviality,
+        line = list(width =1),
+        type = "violin",
+        marker = list(opacity = 0.5,
+          line = list(width = 2)),
+        box = list(visible = T),
+        meanline = list(visible = T,
+                        color = "red",
+                        width = 2)) |> 
+  
+#Generating plot and y-axis title  
+  layout(title = "Distribution of Joviality by Age Group",
+         xaxis = list(title = "Age Group"),
+         yaxis = list(title = "Joviality"),
+         
+#creating dropwdown menus to allow selection of parameters on x-axis 
+         updatemenus = list(list(type = 'dropdown',
+                                 xref = "paper",
+                                 yref = "paper",
+                                 xanchor = "left",
+                                 buttons = list(
+                                   list(method = "update",
+                                        args = list(list(x = list(combined_pivot_data$AgeGroup)),
+                                                    list(xaxis = list(title = "Age Group"))),
+                                        label = "Age Group"),
+                                   list(method = "update",
+                                        args = list(list(x = list(combined_pivot_data$educationLevel)),
+                                                    list(xaxis = list(title = "Education Level")),
+                                                    list(xaxis = list(categoryorder = "category ascending"))),
+                                        label = "Education Level"),
+                                   list(method = "update",
+                                        args = list(list(x = list(combined_pivot_data$householdSize)),
+                                                    list(xaxis = list(title = "Household Size"))),
+                                        label = "Household Size"),
+                                   list(method = "update",
+                                        args = list(list(x = list(combined_pivot_data$haveKids)),
+                                                    list(xaxis = list(title = "Have Kids"))),
+                                        label = "Have Kids?")
+                              
+                                   )
+                                 )
+                            )
+         )
+
+```
+

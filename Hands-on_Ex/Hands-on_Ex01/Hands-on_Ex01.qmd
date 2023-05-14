@@ -55,6 +55,7 @@ ggplot(data = exam_data, aes(x=reorder(RACE,RACE,
   ylab("No. of\npupils")+
   theme(axis.title.y=element_text(angle = 0))
 ```
+
 ## In-Class Exercise fct_infre()
 
 ```{r}

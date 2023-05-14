@@ -3,22 +3,56 @@ project:
 
 website:
   title: "ISSS608-VAA"
-  navbar:
-    left:
-    - text: "Hands-on Exercise"
-      menu:
-        - text: "Hands-on Exercise 1"
-          href: "Hands-on_Ex/Hands-on_Ex01/Hands-on_Ex01.html"
-        - text: "Hands-on Exercise 3"
-          href: "Hands-on_Ex/Hands-on_Ex03/Hands-on_Ex03.html"
-    right:
-      - href: index.qmd
-        text: Home
-      - about.qmd
+  site-url: "https://thngyaowen-iss608.netlify.app/"
+  sidebar:
+    background: "#A8D8CA"
+    tools:
+      - icon: house-fill
+        href: "https://thngyaowen-iss608.netlify.app/"
+        text: "Home"
+      - icon: github
+        href: "https://github.com/yawwwn/ISSS608-VAA"
+        text: "GitHub"
+      - icon: bar-chart-fill
+        href: "https://public.tableau.com/app/profile/yaowen.thng"
+        text: "Tableau"
+      - icon: linkedin
+        href: "https://www.linkedin.com/in/yao-wen-thng/"
+        text: "LinkedIn"
+      - icon: envelope-fill
+        href: "mailto:yaowen.thng.2021@mitb.smu.edu.sg"
+        text: "Email"
+    
+    style: "docked"
+    search: true
+    collapse-level: 1
+    contents:
+      - section: "Home"
+        contents: 
+          - text: "Intro"
+            href: index.qmd
+          - text: "About"
+            href: about.qmd
+      - section: "Hands-on Exercise"
+        contents:
+          - text: "Hands-on Exercise 1"
+            href: "Hands-on_Ex/Hands-on_Ex01/Hands-on_Ex01.html"
+          - text: "Hands-on Exercise 2"
+            href: "Hands-on_Ex/Hands-on_Ex02/Hands-on_Ex02.html"
+          - text: "Hands-on Exercise 3"
+            href: "Hands-on_Ex/Hands-on_Ex03/Hands-on_Ex03.html"
+      - section: "Take-Home Exercise"
+        contents:
+          - text: "Take-Home Exercise"
+            href: "Take-Home_Ex/Take-Home_Ex01/Take-Home_Ex01.html"
+      - section: "In-Class Exercise"
+        contents: 
+          - text: "In-Class Exercise 4"
+            href: "In-Class_Ex/In-Class_Ex04/In-Class_Ex04.html"
 
 format:
   html:
-    theme: superhero
+    theme: Tufte-LaTeX
     css: styles.css
     toc: true
 

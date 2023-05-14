@@ -1,0 +1,65 @@
+---
+title: "Hands-on_Ex04"
+---
+
+```{r}
+pacman::p_load(ggstatsplot,tidyverse)
+```
+
+```{r}
+exam <- read_csv("data/Exam_data.csv")
+````
+
+```{r}
+#set.seed(1234)
+
+gghistostats(
+  data = exam,
+  x = ENGLISH,
+  type = "bayes",
+  test.value = 60,
+  xlab = "English scores"
+)
+```
+
+```{r}
+ggbetweenstats(
+  data = exam,
+  x = GENDER, 
+  y = MATHS,
+  type = "np",
+  messages = FALSE
+)
+```
+
+```{r}
+ggbetweenstats(
+  data = exam,
+  x = RACE, 
+  y = ENGLISH,
+  type = "p",
+  mean.ci = TRUE, 
+  pairwise.comparisons = TRUE, 
+  pairwise.display = "all",
+  p.adjust.method = "fdr",
+  messages = FALSE
+)
+```
+
+
+## Visualising models
+
+```{r}
+pacman::p_load(readxl, performance, parameters, see)
+```
+
+```{r}
+car_resale <- read_xls("data/ToyotaCorolla.xls","data")
+car_resale
+```
+
+```{r}
+model <- lm(Price ~ Age_08_04 + Mfg_Year + KM + 
+              Weight + Guarantee_Period, data = car_resale)
+model
+```
