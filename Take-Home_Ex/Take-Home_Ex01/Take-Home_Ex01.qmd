@@ -1,6 +1,6 @@
 ---
 title: "Take Home Exercise 1"
-subtitle: "Visual Analytics of City of Engagement"
+subtitle: "Visual Analytics of participants from City of Engagement"
 author: "Thng Yao Wen"
 date: 2023-05-05
 date-modified: "`r Sys.Date()`"
@@ -8,15 +8,15 @@ format:
   html:
     code-fold: true
     code-summary: "Show the code"
-execute: 
-  echo: true
-  results: "hide" 
+execute:
   warning: false
 ---
 
 # 1. Overview
 
-City of Engagement, with a total population of 50,000, is a small city located at Country of Nowhere. The city serves as a service centre of an agriculture region surrounding the city. The main agriculture of the region is fruit farms and vineyards. The local council of the city is in the process of preparing the Local Plan 2023. A sample survey of 1000 representative residents had been conducted to collect data related to their household demographic and spending patterns, among other things. The city aims to use the data to assist with their major community revitalization efforts, including how to allocate a very large city renewal grant they have recently received.
+City of Engagement, with a total population of 50,000, is a small city located at Country of Nowhere. The city serves as a service centre of an agriculture region surrounding the city. The main agriculture of the region is fruit farms and vineyards. The local council of the city is in the process of preparing the Local Plan 2023.
+
+A sample survey of **1000 representative residents** had been conducted to collect data related to their household demographic and spending patterns, among other things. The city aims to use the data to assist with their major community revitalization efforts, including how to allocate a very large city renewal grant they have recently received.
 
 The task is to reveal the demographic and financial characteristics of the city of Engagement by using appropriate **static and interactive statistical graphics** methods, using `ggplot2`, its extensions, as well as `tidyverse` family of packages.
 
@@ -24,41 +24,130 @@ The task is to reveal the demographic and financial characteristics of the city 
 
 For the purpose of this study, two data sets are provided.
 
-[**Participants.csv**]{.underline}
+[**Participants.csv**]{.underline} - The data has 1,011 rows and 7 columns.
 
-| participants | Col2 | Col3 |
-|--------------|------|------|
-|              |      |      |
-|              |      |      |
-|              |      |      |
++----------------+-----------+---------------------------------------------------------------------------------------------------------------------------------+
+| Columns        | Data Type | Description                                                                                                                     |
++================+===========+=================================================================================================================================+
+| participantId  | integer   | Unique ID assigned to each participant                                                                                          |
++----------------+-----------+---------------------------------------------------------------------------------------------------------------------------------+
+| householdSize  | integer   | The number of people in the participant's household                                                                             |
++----------------+-----------+---------------------------------------------------------------------------------------------------------------------------------+
+| haveKids       | boolean   | Whether there are children living in the participant's household                                                                |
++----------------+-----------+---------------------------------------------------------------------------------------------------------------------------------+
+| age            | integer   | Participant's age in years at the start of the study                                                                            |
++----------------+-----------+---------------------------------------------------------------------------------------------------------------------------------+
+| educationLevel | string    | The participant's education level, one of: {"Low", "HighSchoolOrCollege", "Bachelors", "Graduate"}                              |
++----------------+-----------+---------------------------------------------------------------------------------------------------------------------------------+
+| interestGroup  | char      | A char representing the participant's stated primary interest group, one of {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"}. |
+|                |           |                                                                                                                                 |
+|                |           | *Note: specific topics of interest have been redacted to avoid bias.*                                                           |
++----------------+-----------+---------------------------------------------------------------------------------------------------------------------------------+
+| joviality      | float     | A value ranging from \[0,1\] indicating the participant's overall happiness level at the start of the study.                    |
++----------------+-----------+---------------------------------------------------------------------------------------------------------------------------------+
+
+[**FinancialJournal.csv**]{.underline} - The data has 1,513,636 rows and 4 columns.
+
++---------------+---------------+---------------------------------------------------------------------------------------------------------------------------+
+| Columns       | Data Type     | Description                                                                                                               |
++===============+===============+===========================================================================================================================+
+| participantId | integer       | Unique ID assigned to each participant                                                                                    |
++---------------+---------------+---------------------------------------------------------------------------------------------------------------------------+
+| timestamp     | datetime      | The time when the check-in was logged                                                                                     |
++---------------+---------------+---------------------------------------------------------------------------------------------------------------------------+
+| category      | string factor | A string describing the expense category, one of {"Education", "Food", "Recreation", "RentAdjustment", "Shelter", "Wage"} |
++---------------+---------------+---------------------------------------------------------------------------------------------------------------------------+
 
 # 3. Data Preparation
 
 ## 3.1 Install R Packages
 
+The R packages are installed using `pacman::p_load()`. Below is a list of main packages installed:
+
+-   `tidyverse`: Comprehensive collection of data manipulation and visualization packages.
+
+-   `plotly`: Interactive data visualization package for creating dynamic charts.
+
+-   `ggstatsplot`: Enhances ggplot2 with statistical visualization capabilities.
+
+-   `gganimate`: Creates animated plots using ggplot2.
+
+-   `ggrepel`: Avoids label overlap in ggplot2 plots.
+
+-   `ggridges`: Creates ridgeline plots in ggplot2.
+
+-   `ggiraph`: Adds interactivity to ggplot2 plots.
+
+-   `waffles`: Creates waffle charts for visualizing proportions or percentages.
+
+-   `patchwork`: Combines multiple ggplot2 plots into a single layout.
+
 ```{r}
-pacman::p_load(ggstatsplot, tidyverse, ggthemes, plotly, corrplot, lubridate, ggpubr, ggrepel, gganimate, ggrepel, knitr, ggridges, ggdist, reshape2, ggstatsplot, treemap, ggiraph, patchwork,cowplot, waffle,ggiraphExtra)
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
+pacman::p_load(tidyverse, ggthemes, plotly, lubridate, ggpubr, ggrepel, gganimate, knitr, ggridges, ggdist, reshape2, ggstatsplot, ggiraph, patchwork, waffle,ggiraphExtra)
 ```
 
 ## 3.2 Loading data
 
+Importing both datasets and assigning it to a variable each.
+
 ```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
 participants <- read_csv("data/Participants.csv")
 fin_journal <- read_csv("data/FinancialJournal.csv")
 ```
 
 ### 3.2.1 Participants Data
 
+Below show a snippet of the data
+
 ```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
 participants
 ```
 
+### 3.2.2 FinancialJournal Data
+
 ```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
+fin_journal
+```
+
+## 3.3 Data Wrangling
+
+The raw data from both data sets requires additional wrangling and manipulation before they can be processed and analysed further.
+
+### 3.3.1 Participants Data
+
+`is.na()` function is used to check if any values are missing from the ***participants*** data set. No values are missing.
+
+```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
 any(is.na(participants))
 ```
 
+To ensure subsequent statistical and categorical data analysis would not encounter problems, it is also best practice to convert variables, especially categorical ones, into factor type.
+
+-   **educationLevel** and **interestGroup** are in `chr` type and is converted to `fctr` .
+
+-   **haveKids** is in `lgl` boolean type. However, we will also convert to `fctr`.
+
+-   **householdSize** is in `dbl` type. While it is technically accurate, it is not useful for analysis. Hence we will convert to `fctr` type.
+
+-   **participantId** will be converted to `chr` type.
+
 ```{r}
-# Convert in to factors
+# Convert variables to factor type
 col <- c("haveKids","educationLevel","interestGroup", "householdSize")
 participants <- participants %>%
   mutate_at(col, as.factor) %>%
@@ -69,83 +158,74 @@ custom_order <- c("Low", "HighSchoolOrCollege", "Bachelors", "Graduate")
 
 # Convert educationLevel to a factor with custom order
 participants$educationLevel <- factor(participants$educationLevel, levels = custom_order)
+
 ```
 
-```{r}
-participants
-```
+::: callout-tip
+To ensure better visual representation, we can explicitly specify the order of education level. This can only be done for `fctr` data type!
+:::
 
-### 3.2.2 FinancialJournal Data
+### 3.3.2 FinancialJournal Data
 
-```{r}
-fin_journal
-```
+Similarly, for ***FinancialJournal*** dataset, a `is.na()` function is performed to check for missing values.
 
 ```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
 any(is.na(fin_journal))
 ```
 
-Duplicate check
+#### 3.3.2.1 Remove duplicates
+
+Next, given that it is a large data set, we shall do a duplicate check using `duplicated`. There are a total of 1,113 duplicated data.
 
 ```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
 duplicates <- duplicated(fin_journal)
+sum(duplicates)
 ```
 
+::: callout-caution
+While duplicate checks are important to preserve data integrity, it is important to be careful as not every seemingly duplicated data are duplicates, especially in the absence of a unique id. In the above example, it is also possible for 2 records to be the same but yet distinct in business nature.
+:::
+
+As **timestamp** is the only remotely unique data, we use `unique` to observe whether duplicated data are sparse across the dates.
+
 ```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
 distinct_months <- unique(fin_journal[duplicates, "timestamp"])
 distinct_months
 ```
 
 Since all of the duplicated data belongs to the same month, there's reason to believe they are genuine duplicates.
 
-Remove duplicates
+#### 3.3.2.2 Change data type
+
+As such, we shall create a new clean data set and name it **fin_journal_clean**. We would also perform some data wrangling by changing the data types of the variables:
+
+-   Convert **timestamp** from `POSIXct` to `date` format, keeping only month and year.
 
 ```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
 fin_journal_clean <- distinct(fin_journal) %>%
   mutate(timestamp = floor_date(timestamp, "month")) %>%
   mutate(timestamp = as.Date(timestamp)) %>%
   mutate(participantId = as.character(participantId))
-fin_journal_clean
 ```
 
-#### 3.2.2.1 Non-pivot Data
+#### 3.3.2.3 Pivot table
 
-Creating new variables
-
-```{r}
-fin_journal_final <- fin_journal_clean %>%
-  mutate(category_type = ifelse(amount >= 0, "Income", "Expenses"))
-fin_journal_final
-```
+As the **fin_journal_clean** table is a long vertical table, we will perform a pivot to a horizontal table where each of the expense categories have its own column.
 
 ```{r}
-combined_data <- left_join(fin_journal_final, participants, by = "participantId")
-combined_data
-```
-
-#### 3.2.2.2 Pivot Data
-
-```{r}
-##retry
-fin_journal_clean
-fin_journal_pivot_test <- fin_journal_clean %>%
-  group_by(participantId, category) %>%
-  summarize(total_amount = sum(amount))%>%
-  pivot_wider(
-    id_cols = c(participantId),
-    names_from = category,
-    values_from = total_amount
-  ) %>%
-  mutate(across(where(is.numeric), ~if_else(is.na(.), 0, .))) %>%
-  
-  ##Sum total expenses and convert to absolute value
-  mutate(total_expenses = abs(Education + Food + Recreation + Shelter)) %>%
-  mutate(total_income = RentAdjustment + Wage) %>%
-  mutate(Expense_ratio = total_expenses/total_income)
-fin_journal_pivot_test
-```
-
-```{r}
+#pivot to horizontal table
 fin_journal_pivot <- fin_journal_clean %>%
   group_by(participantId, timestamp, category) %>%
   summarize(total_amount = sum(amount)) %>%
@@ -154,15 +234,32 @@ fin_journal_pivot <- fin_journal_clean %>%
     names_from = category,
     values_from = total_amount
   ) %>%
+  #for columns that are numeric, replace NA values with 0
   mutate(across(where(is.numeric), ~if_else(is.na(.), 0, .)))
+```
+
+Below is a preview of the pivoted table.
+
+```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
 fin_journal_pivot
 ```
+
+#### 3.3.2.4 Missing participants
+
+Below, we do a check to ensure that all participants have provided the necessary data. That is, a reasonableness check that for every participant, there should be the same number of months (12) of data.
 
 ```{r}
 # Calculate the expected number of months based on the total number of unique months in the dataset
 expected_months <- n_distinct(fin_journal_pivot$timestamp)
 expected_months
+```
 
+We identify and count the number of participants that have less than 12 months of data.
+
+```{r}
 # Group the data by participantId and calculate the actual number of months for each participant
 participant_months <- fin_journal_pivot %>%
   group_by(participantId) %>%
@@ -170,19 +267,40 @@ participant_months <- fin_journal_pivot %>%
 
 # Identify participants with missing data
 missing_participants <- participant_months %>%
-  filter(actual_months != expected_months)
-missing_participants
-#participant_months
+  filter(actual_months < expected_months)
 ```
+
+There are total of 113 participants with data missing in some months. It is believed/assumed that they have dropped out of the data collection.
+
+```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
+count(missing_participants)
+```
+
+Hence, we shall remove this participants and their data.
 
 ```{r}
 fin_journal_pivot_final <- fin_journal_pivot %>%
   anti_join(missing_participants, by = "participantId")
-#kable(fin_journal_final, "simple")
 ```
+
+#### 3.3.2.5 Final Wrangling
+
+Finally, we shall perform some final clean-ups. These include:
+
+-   Remove **timestamp** column and summarise/group the remaining data. As data are collected upon 12 month period, the time-series data might not be as useful to us. Data can be interpreted on a monthly or annual basis.
+
+-   Adding expense categories together to form a new variable called **total_expenses**
+
+-   Adding income categories together to form a new variable called **total_income**
+
+-   Creating a new variable called **expense_ratio,** which takes **total_expenses / total_income**
 
 ```{r}
 fin_journal_pivot_final <- fin_journal_pivot_final %>%
+  # removing timestamp column
   select(-matches("timestamp")) %>%
   group_by(participantId) %>%
   summarize_at(vars(Education:RentAdjustment),sum) %>%
@@ -190,20 +308,23 @@ fin_journal_pivot_final <- fin_journal_pivot_final %>%
   mutate(total_expenses = abs(Education + Food + Recreation + Shelter)) %>%
   mutate(total_income = RentAdjustment + Wage) %>%
   mutate(Expense_ratio = total_expenses/total_income)
-fin_journal_pivot_final
 ```
 
-```{r}
-No_of_participants <- n_distinct(fin_journal_pivot_final$participantId)
-No_of_participants
-```
+#### 3.3.2.6 Joining data sets
 
-join dataset
+Finally, we combine both data sets to form a unified one **combined_pivot_data.**
 
 ```{r}
 combined_pivot_data <- left_join(fin_journal_pivot_final, participants, by = "participantId")
-combined_pivot_data
+```
 
+Below is a sample of the data:
+
+```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
+kable(head(combined_pivot_data), "simple")
 ```
 
 ## 3.3 Summary of Data
@@ -214,33 +335,48 @@ There are a total of 1,011 participants interviewed. Below list the summary stat
 #quantitative columns to describe
 sel_col <- c("householdSize", "age", "joviality")
 #filter dataset
-sel_data <- participants %>%
+sel_data <- combined_pivot_data %>%
   select(all_of(sel_col))
 psych::describe(sel_data)
 ```
 
-# 4. Data Viz
+# 4. Data Visualisation
 
 ## 4.1 Demographics
 
+Below is a high-level overview of the demographics of participants.
+
 ::: panel-tabset
 ## Age
+
+**Observation:**
+
+The age of the participants are relatively evenly distributed across the age ranges, with lowest being 18 and oldest being 60.
+
 ```{r}
 plot <- ggplot(combined_pivot_data, 
        aes(x = age)) +
   geom_histogram(binwidth = 5, 
                  fill = "lightblue", 
                  color = "black") +
-  labs(x = "Age", y = "Count") +
+  labs(x = "Age", y = "No. of Participants") +
   ggtitle("Distribution of Age") +
-  theme_minimal() 
+  theme_minimal() +
+  theme(panel.grid.major.x = element_blank(), #remove vertical gridlines
+        panel.grid.minor.x = element_blank(),
+        plot.title = element_text(face = "bold", hjust = 0.5, size = 14)) 
 
 print(plot)
 print(as.data.frame(psych::describe(combined_pivot_data$age)))
 
 ```
 
-## Family Size
+## Household Size
+
+**Observation:**
+
+10% more participants live alone than have kids (household size more than 1)
+
 ```{r}
 # Calculate the count and percentage
 participants_count <- combined_pivot_data %>%
@@ -260,19 +396,24 @@ color_palette <- scales::brewer_pal(type = "qual")(length(unique(participants_co
 pie_chart <- ggplot(participants_count, aes(x = "", y = householdSize_pct, fill = householdSize)) +
   geom_bar(stat = "identity", width = 1, color = "white") +
   coord_polar(theta = "y") +
-  scale_fill_manual(values = color_palette) +
+  scale_fill_manual(values = color_palette, name = 'Household Size') +
   geom_text(aes(label = paste0(householdSize_pct, "%")), position = position_stack(vjust = 0.5), color = "white") +
-  labs(title = "Proportion of Flat Types in Singapore") +
+  labs(title = "Proportion of Household Sizes among participants") +
   theme_void() +
-  theme(plot.title = element_text(hjust = 0.5))
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 14))
 
 # Display the pie chart
 pie_chart
 
 ```
-## Financial Behavior
-```{r}
 
+## Financial Behavior
+
+**Observation:**
+
+We use `waffle` charts here to illustrate the breakdown of financials by the average participants. Out of total income, most are proportioned to [**Savings**]{style="color:#FFB621;"}, followed by [**Shelter expenses**]{style="color:#7CAE00;"}, then [**Recreation**]{style="color:#C77CFF;"}, [**Food**]{style="color:#F8766D;"} and lastly [**Education**]{style="color:#00BFC4;"}.
+
+```{r}
 average_participant <- combined_pivot_data %>%
   summarize(
     FoodExpenses = abs(mean(Food)),
@@ -296,17 +437,33 @@ waffle_data <- data.frame(
   proportion = c(expenses_prop, savings_prop)
 )
 
+# does not work for waffle charts unfortunately
 legend_labels <- c("Food Expenses", "Shelter Expenses", "Education", "Recreation", "Savings")
 
 waffle_chart <- waffle(waffle_data$proportion*100, rows = 10, size = 1,
                        colors = c("#F8766D", "#7CAE00", "#00BFC4", "#C77CFF", "#FFB621"),
-                       title = "Average Participant Financial Breakdown",
-                       pad = 0.3)
+                       title = list(label = "Financial Breakdown of\n Average Participant", size = 10, face = "bold", hjust = 0.5),
+                       pad = 0.3
+)
 waffle_chart
 
-
 ```
+
+```{r}
+parts=c("Extraction"=397, "Operculectomy"=11, "Medication"=3)
+waffle(parts, row=12, colors=c("#CC0000", "#006600", "#669999"))
+```
+
 ## Education Level
+
+**Observation:**
+
+47.95% of the participants have High School or College degrees whereas 6.56% of participants have low education level.
+
+::: callout-tip
+Hover over to see the number of participants and percentage breakdown!
+:::
+
 ```{r}
 # Calculate the count for each education level
 education_count <- combined_pivot_data %>%
@@ -316,15 +473,20 @@ education_count <- combined_pivot_data %>%
 # Order the education levels by count
 education_count <- education_count[order(education_count$count, decreasing = TRUE), ]
 
+# Calculate percentage
+education_count <- education_count %>%
+  mutate(percentage = count / sum(count) * 100)
+
 # Create the stacked bar chart using ggplot2
-stacked_bar_chart <- ggplot(education_count, aes(x = "", y = count, fill = educationLevel, tooltip = count)) +
+stacked_bar_chart <- ggplot(education_count, aes(x = "", y = count, fill = educationLevel, tooltip = paste("No. of Participants:", count,"<br>Percentage:", round(percentage, 2), "%"))) +
   geom_bar_interactive(stat = "identity", width = 1, color = "white") +
   coord_flip() +
-  scale_fill_viridis_d() +
+  scale_fill_viridis_d(name = 'Household Size') +
   labs(title = "Education Level Breakdown",
        x = NULL, y = "Count") +
   theme_minimal() +
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom",
+        plot.title = element_text(face = "bold", hjust = 0.5, size = 14))
 
 # Display the stacked bar chart
 girafe(ggobj = stacked_bar_chart,
@@ -332,14 +494,33 @@ girafe(ggobj = stacked_bar_chart,
   height_svg = 6*0.618)
 
 ```
+
 ## Have Kids
 
+**Observation:**
+
+Most of the participants do not have kids.
+
 ```{r}
-ggplot(data=combined_pivot_data, 
-       aes(x=haveKids)) +
-  geom_bar()
+ggplot(data = combined_pivot_data, aes(x = haveKids)) +
+  geom_bar(fill = "#00BFC4", color = "black", width = 0.6) +
+  labs(x = "Have Kids", y = "Count", title = "Distribution of Participants by whether they have kids") +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(face = "bold", hjust = 0.5, size = 14),
+    axis.title = element_text(size = 14, face = "bold"),
+    plot.title = element_text(size = 16, face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+
 ```
+
 ## Overall Income & Expenses
+
+**Observation:**
+
+Annual Income is left-skewed - which indicates more of the participants have lower income whereas Annual Expenses seem to follow normal distribution.
+
 ```{r}
 p1 <- ggplot(data=combined_pivot_data, 
              aes(x = total_income)) +
@@ -347,7 +528,15 @@ p1 <- ggplot(data=combined_pivot_data,
                  #boundary = 100,
                  color="grey25", 
                  fill="grey90") + 
-  ggtitle("Distribution of Annual Income")
+  labs(
+    x = "Total Income",
+    y = "Count",
+    title = "Distribution of Annual Income",
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank()
+  )
 
 p2 <- ggplot(data=combined_pivot_data, 
              aes(x = total_expenses)) +
@@ -355,7 +544,15 @@ p2 <- ggplot(data=combined_pivot_data,
                  #boundary = 100,
                  color="grey25", 
                  fill="grey90") + 
-  ggtitle("Distribution of Annual Expenses")
+  labs(
+    x = "Total Expenses",
+    y = "Count",
+    title = "Distribution of Annual Expenses",
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank()
+  )
 
 p3 <- ggplot(data=combined_pivot_data, 
              aes(x = Expense_ratio)) +
@@ -363,19 +560,38 @@ p3 <- ggplot(data=combined_pivot_data,
                  #boundary = 100,
                  color="grey25", 
                  fill="grey90") + 
-  #coord_cartesian(xlim=c(0,100)) +
-  ggtitle("Distribution of Annual Expenses")
+  labs(
+    x = "Expenses Ratio",
+    y = "Count",
+    title = "Distribution of Expense Ratio",
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank()
+  )
 
 patchwork <- (p1 / p2) | p3
-patchwork & theme_economist()
-
+patchwork 
 ```
 :::
 
-## Exploratory Data Sets
+## 4.2 Exploratory Data Visualisation
+
+### 4.2.1 Ridgeline Plot
+
+A ridgeline plot is a visualization that displays the distribution of a numeric variable across groups as stacked smoothed curves, helping compare distribution shapes and densities. It provides a compact and visually appealing way to analyze and compare distributions, making it useful for exploring data with multiple categories or groups.
+
+From below, we can observe that:
+
+-   Participants with higher education level makes higher wages, and that is consistent across all age groups
+
+-   However, there is no significant changes in wages at every education level.
+
+-   Participants that live alone (household size = 1) has lower expenses that those with more than 1. However, there is no significant differences between participants with a spouse (household size = 2) and those with kids (household size = 3). In fact, both have the same distribution.
 
 ::: panel-tabset
 ## Education Level vs Wage
+
 ```{r}
 combined_pivot_data <- combined_pivot_data %>%
   mutate(AgeGroup = cut(age, breaks = c(0,20, 30, 40, 50, 60), labels = c("<20", "20-30", "30-40", "40-50", "50-60")))
@@ -394,7 +610,6 @@ ggplot(combined_pivot_data,
        title = "Distribution of Wage by Education Level at Age Group {closest_state}") +
   
   theme(legend.position="none",
-  text = element_text(family = "Garamond"),
   plot.title = element_text(face = "bold", size = 12),
   axis.title.x = element_text(size = 10, hjust = 1),
   axis.title.y = element_text(size = 10),
@@ -405,6 +620,7 @@ ggplot(combined_pivot_data,
 ```
 
 ## Household Size vs Expenses
+
 ```{r}
 ggplot(combined_pivot_data, 
        aes(y = householdSize,
@@ -431,24 +647,34 @@ ggplot(combined_pivot_data,
 ```
 :::
 
-## Interactive Scatter Plot
+### 4.2.2 Interactive Scatter Plot
+
+Scatter plots display the relationship between two continuous variables as a collection of individual data points on a two-dimensional plane. The below visualisation focus on Joviality score as the y-axis variable, to observe the relationship with other variables. It allows the City Planners to select the x-axis of the variables they wish to study.
+
+For x-axis, we selected **Annual Income, Annual Expense, Recreation Expenses, Expense Ratio,** and **Age.** This is to discover patterns of user's financial behavior versus their happiness level. **Recreation Expenses** is the only expense category chosen as it is assumed that it is the only one which doesn't cover the basic needs (according to Maslow's Hierarchy of Needs!).
+
+As the below scatterplot is only plotted for visualisation and not for statistical inquiries (which we would do below at a later section!), `plot_ly` is used to prepare the interactive plot.
+
+In order to prepare a dynamic chart for users to interact and change the variables, `updatemenus` argument is parsed.
+
+Users can also hover over the plots to see the tooltip.
 
 ```{r}
-#Initiating the base plot
+#Base plot
 plot_ly(data = combined_pivot_data,
         x = ~total_income,
         y = ~joviality,
-        hovertemplate = ~paste("<br>Total Income", total_income,
+        hovertemplate = ~paste("<br>Age:", age,
+                               "<br>Total Income", total_income,
                                "<br>Total Expenses:", total_expenses,
-                               "<br>Joviality Score:", joviality),
+                               "<br>Expense Ratio:", Expense_ratio),
         type = 'scatter',
-        mode = 'markers',
-        marker = list(opacity = 0.6,
-                      sizemode = 'diameter',
+        mode = 'markets',
+        marker = list(opacity = 0.7,
+                      color = '#00BFC4',
                       line = list(width = 0.2, color = 'white'))) |> 
 
-#Generating plot, x-axis, and y-axis title
-  layout(title = "Interactive scatterplot of participants' Total Annual Income vs Joviality Score",
+  layout(title = list(text="<b>Interactive scatterplot of participants'\nTotal Annual Income vs Joviality Score</b>", font = list(size = 14)),
          xaxis = list(title = "Total Annual Inncome"),
          yaxis = list(title = "Joviality Score"),
          
@@ -489,7 +715,25 @@ plot_ly(data = combined_pivot_data,
 
 ```
 
-## Interactive Boxplot
+From above, we can observe and draw following insights:
+
+-   **Annual Income** has no positive correlation (in fact, somewhat negative!) with **Joviality Score.** In fact, participants that are drawing high income have lower **joviality score.**
+
+-   **Total Expenses, Recreation Expenses** and **Expense Ratio** have positive correlation with **Joviality Score.**
+
+-   There are no correlation between **Age** and **Joviality Score.**
+
+### 4.2.3 Interactive Violin plot
+
+A Violin plot, is a graphical representation of the distribution of a continuous variable through quartiles. It is generally used to discover relationship between continuous and discrete variables, and allow for the visualisation of kernel density.
+
+The below visualisation also allow City Planners to select the x-axis and y-axis they intend to study.
+
+For y-axis, **Joviality**, **Total Annual Income** and **Expense Ratio** are chosen. For x-axis, categorical and discrete variables are chosen. These include **Age Group, Education Level, Household size,** whether participants **Have Kids?, Income Level,** and **Interest Group.**
+
+**Income Level** is a new variable that is added to the data set. It is derived by breaking down the Total Annual Income of participants into 4 different quantiles, and respectively named as {"Low", "Medium", "High", "Very High"}.
+
+Similar to the scatterplot, `plot_ly` is used to prepare the interactive plot.
 
 ```{r}
 # Define the income levels based on quantiles
@@ -499,7 +743,7 @@ income_levels <- quantile(combined_pivot_data$total_income, probs = c(0, 0.25, 0
 combined_pivot_data <- combined_pivot_data %>%
   mutate(income_level = factor(cut(total_income, breaks = income_levels, include.lowest = TRUE, labels = c("Low", "Medium", "High", "Very High"),ordered = TRUE)))
 
-#Initiating the base plot
+#Base plot
 plot_ly(data = combined_pivot_data,
         x = ~AgeGroup,
         y = ~joviality,
@@ -512,10 +756,9 @@ plot_ly(data = combined_pivot_data,
                         color = "red",
                         width = 2)) |> 
   
-#Generating plot and y-axis title  
-  layout(title = "Distribution of Joviality by Age Group",
-         xaxis = list(title = "Age Group"),
-         yaxis = list(title = "Joviality"),
+  layout(title = list(text="<b>Distribution of Joviality by Age Group</b>", font = list(size = 14)),
+         xaxis = list(title = "Total Annual Inncome"),
+         yaxis = list(title = "Joviality Score"),
          
 #creating dropwdown menus to allow selection of parameters on x-axis 
          updatemenus = list(list(type = 'dropdown',
@@ -534,9 +777,7 @@ plot_ly(data = combined_pivot_data,
                                         label = "Age Group"),
                                    list(method = "update",
                                         args = list(list(x = list(combined_pivot_data$educationLevel)),
-                                                    list(xaxis = list(title = "Education Level")),
-                                                    list(xaxis = list(categoryorder = "category ascending"))),
-                                        label = "Education Level"),
+                                                    list(xaxis = list(title = "Education Level", categoryorder = "mean ascending"))),                                        label = "Education Level"),
                                    list(method = "update",
                                         args = list(list(x = list(combined_pivot_data$householdSize)),
                                                     list(xaxis = list(title = "Household Size"))),
@@ -548,7 +789,12 @@ plot_ly(data = combined_pivot_data,
                                    list(method = "update",
                                         args = list(list(x = list(combined_pivot_data$income_level)),
                                                     list(xaxis = list(title = "Income Level", categoryorder = "mean descending"))),
-                                        label = "Income Level")
+                                        label = "Income Level"),
+                                   list(method = "update",
+                                        args = list(list(x = list(combined_pivot_data$interestGroup)),
+                                                    list(xaxis = list(title = "Interest Group", categoryorder = "mean descending"))),
+                                        label = "Interest Group")
+                                   
                             
                                  )
                                  ),
@@ -557,7 +803,7 @@ plot_ly(data = combined_pivot_data,
                                  yref = "paper",
                                  xanchor = "left",
                                  yanchor = "top",
-                                 x = 0.04,
+                                 x = 0,
                                  y = 1.05,
                                  buttons = list(
                                    list(method = "update",
@@ -567,7 +813,11 @@ plot_ly(data = combined_pivot_data,
                                    list(method = "update",
                                         args = list(list(y = list(combined_pivot_data$Expense_ratio)),
                                                     list(yaxis = list(title = "Expense Ratio"))),
-                                        label = "Expense Ratio")
+                                        label = "Expense Ratio"),
+                                   list(method = "update",
+                                        args = list(list(y = list(combined_pivot_data$total_income)),
+                                                    list(yaxis = list(title = "Total Annual Income"))),
+                                        label = "Total Annual Income")
                                    )
                                  )
                             )
@@ -575,4 +825,304 @@ plot_ly(data = combined_pivot_data,
 
 ```
 
+From above, we can observe and draw following insights:
 
+-   For **Joviality Score,** there is minimal difference between the means/medians when plotted against all other variables except **Education Level.** The violin plot reveals lower mean/median for **Jovality Score** for higher education levels compared to lower one.
+
+-   For **Expense Ratio,** similarly, there is minimal difference between the means/medians of most variables. In this case, only **Education Level** and **Income Level** was observed to have largely different means/medians across the group. Participants with low **Education Level** have higher expense ratio mean/median that those with higher **Education Level.** The other observation is that among the participants, those with very high **Income Level** had much lower mean/median expense ratio, indicating a much higher saving ratio that those with low **Income Level,** which could indicate that those with high spending power are not spending as much as they are expected to.
+
+-   For **Total Annual Income,** there's no surprise that again, only when plotted against **Education Level** did we observe a difference in means/medians of the groups. Participants with higher **Education Level** earned more on a annual basis than those with low **Education Level.** Those with low education level has much lower variance, whereas those with high education level observed wider variances.
+
+## 4.3 Visualising Uncertainty
+
+Visualizing uncertainty in data is a challenging task in data visualization. Often, we interpret data points as precise representations of true values, neglecting the inherent uncertainty. Hence, it is important to note these uncertainties either in error bars or confidence bands.
+
+The below visualisation uses `stat_pointinterval()` of `ggdist` package to build a visual of displaying distribution of different variables.
+
+Based on the insights and observation from the above exploratory data visualization, we selected the key variables such as **Education Level**, **Total Income**, **Total Expense** and **Expense Ratio** to visualise the uncertainties.
+
+::: panel-tabset
+## Education Level vs Total Income
+
+```{r}
+combined_pivot_data %>%
+  ggplot(aes(x = educationLevel, 
+             y = total_income)) +
+  
+  stat_pointinterval(
+    aes(interval_color = stat(level)),
+    .width = c(0.95, 0.99),
+    .point = mean,
+    .interval = qi,
+    point_color = "darkred",
+    show.legend = FALSE) +
+  
+  #Defining the color of the intervals 
+  scale_color_manual(
+    values = c("blue2", "darkgreen"),
+    aesthetics = "interval_color") +
+  
+  labs(
+    title = "Visualising uncertainty in mean estimates of Total Annual income\nby Education Level",
+    subtitle = "95% and 99% quantiles intervals at mean point",
+    x = "Education level",
+    y = "Annual Income") +
+  
+   theme_minimal() +
+  
+  theme(plot.title = element_text(face = "bold", size = 12),
+        plot.subtitle = element_text(size = 10),
+        axis.text.x = element_text(hjust = 1))
+```
+
+## Education Level vs Expense Ratio
+
+```{r}
+combined_pivot_data %>%
+  ggplot(aes(x = educationLevel, 
+             y = Expense_ratio)) +
+  
+  stat_pointinterval(
+    aes(interval_color = stat(level)),
+    .width = c(0.95, 0.99),
+    .point = mean,
+    .interval = qi,
+    point_color = "darkred",
+    show.legend = FALSE) +
+  
+  #Defining the color of the intervals 
+  scale_color_manual(
+    values = c("blue2", "darkgreen"),
+    aesthetics = "interval_color") +
+  
+  labs(
+    title = "Visualising uncertainty in mean estimates of Total Annual income\nby Education Level",
+    subtitle = "95% and 99% quantiles intervals at mean point",
+    x = "Education level",
+    y = "Expense Ratio") +
+  
+   theme_minimal() +
+  
+  theme(plot.title = element_text(face = "bold", size = 12),
+        plot.subtitle = element_text(size = 10),
+        axis.text.x = element_text(hjust = 1))
+```
+
+## Income Level vs Joviality
+
+```{r}
+combined_pivot_data %>%
+  ggplot(aes(x = income_level, 
+             y = joviality)) +
+  
+  stat_pointinterval(
+    aes(interval_color = stat(level)),
+    .width = c(0.95, 0.99),
+    .point = mean,
+    .interval = qi,
+    point_color = "darkred",
+    show.legend = FALSE) +
+  
+  #Defining the color of the intervals 
+  scale_color_manual(
+    values = c("blue2", "darkgreen"),
+    aesthetics = "interval_color") +
+  
+  labs(
+    title = "Visualising uncertainty in mean estimates of Total Annual income\nby Education Level",
+    subtitle = "95% and 99% quantiles intervals at mean point",
+    x = "Income level",
+    y = "Joviality") +
+  
+   theme_minimal() +
+  
+  theme(plot.title = element_text(face = "bold", size = 12),
+        plot.subtitle = element_text(size = 10),
+        axis.text.x = element_text(hjust = 1))
+```
+
+## Interest Group vs Recreation Expenses
+
+```{r}
+combined_pivot_data %>%
+  ggplot(aes(x = interestGroup, 
+             y = Recreation)) +
+  
+  stat_pointinterval(
+    aes(interval_color = stat(level)),
+    .width = c(0.95, 0.99),
+    .point = mean,
+    .interval = qi,
+    point_color = "darkred",
+    show.legend = FALSE) +
+  
+  #Defining the color of the intervals 
+  scale_color_manual(
+    values = c("blue2", "darkgreen"),
+    aesthetics = "interval_color") +
+  
+  labs(
+    title = "Visualising uncertainty in mean estimates of Total Annual income\nby Education Level",
+    subtitle = "95% and 99% quantiles intervals at mean point",
+    x = "Interest Group",
+    y = "Recreation") +
+  
+   theme_minimal() +
+  
+  theme(plot.title = element_text(face = "bold", size = 12),
+        plot.subtitle = element_text(size = 10),
+        axis.text.x = element_text(hjust = 1))
+```
+:::
+
+As noted from previous section, the only worthy insights drawn here is that higher **Education Level** have higher uncertainties in terms for **Total Annual Income.**
+
+## 4.4 Correlation Analysis
+
+Next, we plot a correlation chart to compare the different variables. The correlation charts illustrate that there is a positive relationship between **Total Expenses** and **Joviality,** as well as **Recreation Expenses** and **Joviality**, with **Total Expenses** having a stronger correlation. That is, the more a user spends, the happier they are. This is previously noted in Section 4.2.2 as well. However, there is a weak positive relationship between **Income** and **Recreation Expenses -** that is, the intuitive notion that as one's spending power increases, one would be spending more on recreation activities is not exactly true.
+
+::: panel-tabset
+## Income vs Recreation Expenses
+
+```{r}
+ggscatterstats(
+  data = combined_pivot_data,
+  x = total_income,
+  y = Recreation,
+  marginal = FALSE,
+  )+
+  
+  theme_minimal() +
+  
+  labs(title = 'Correlation of Income and Recreation Expenses', x = "Annual Income", y = "Recreation Expenses")
+
+```
+
+## Recreation Expenses vs Joviality
+
+```{r}
+ggscatterstats(
+  data = combined_pivot_data,
+  x = Recreation,
+  y = joviality,
+  marginal = FALSE,
+  ) +
+
+  theme_minimal() +
+  
+  labs(title = 'Correlation of Recreation Expense and Joviality Score', x = "Recreation Expenses", y = "Joviality")
+        axis.title = element_text(size = 12, face = "bold") +
+  theme(text = element_text(family = "Garamond"),
+        plot.title = element_text(hjust = 0.2, size = 15, face = 'bold'))
+
+```
+
+## Total Expenses vs Joviality
+
+```{r}
+ggscatterstats(
+  data = combined_pivot_data,
+  x = total_expenses,
+  y = joviality,
+  marginal = FALSE,
+  ) +
+
+  theme_minimal() +
+  
+  labs(title = 'Correlation of Total Expense and Joviality Score', x = "Total Expenses", y = "Joviality")
+        axis.title = element_text(size = 12, face = "bold") 
+
+```
+:::
+
+##  4.5 Further analysis - Low Income Family
+
+We wanted to further look into visualising the expenditures of low income family, as this could be an area of interest for City Planners with regards to awarding grants.
+
+Hence, below, we plot a histogram for each of the expense category, where participants from low-income family spend a percentage of their expenses from.
+
+The histogram is plotted with `ggplot` while the coordinated multiple views is augmented with `ggiraph`.
+
+::: panel-tabset
+## Histogram
+```{r}
+# Filter the dataset for low-income participants
+low_income_data <- combined_pivot_data[combined_pivot_data$income_level == "Low", ]
+
+# Calculate the total expenses for each participant
+low_income_data$total_expenses <- rowSums(low_income_data[, c("Recreation", "Shelter", "Food", "Education")])
+
+# Calculate the percentage spent on recreation for each participant
+low_income_data$Recreation_pct <- low_income_data$Recreation / low_income_data$total_expenses * 100
+low_income_data$Shelter_pct <- low_income_data$Shelter / low_income_data$total_expenses * 100
+low_income_data$Food_pct <- low_income_data$Food / low_income_data$total_expenses * 100
+low_income_data$Education_pct <- low_income_data$Education / low_income_data$total_expenses * 100
+
+# Combine the three histograms into one plot
+ggplot(low_income_data) +
+  geom_histogram(aes(x = Recreation_pct, fill = "Recreation"), binwidth = 5, alpha = 0.5) +
+  geom_histogram(aes(x = Shelter_pct, fill = "Shelter"), binwidth = 5, alpha = 0.5) +
+  geom_histogram(aes(x = Food_pct, fill = "Food"), binwidth = 5, alpha = 0.5) +
+  geom_histogram(aes(x = Education_pct, fill = "Education"), binwidth = 5, alpha = 0.5) +
+  scale_fill_manual(values = c("Recreation" = "steelblue", "Shelter" = "orange", "Food" = "green", "Education" = "yellow")) +
+  labs(x = "Percentage Spent", y = "Frequency", fill = "Expense Category") +
+  ggtitle("Distribution of Percentage Spent on Expenses (Low Income)") +
+  theme_minimal()
+```
+
+## Coordinated Multiple Views
+```{r}
+p1 <- ggplot(data=low_income_data, 
+       aes(x = Recreation_pct)) +
+  geom_dotplot_interactive(              
+    aes(data_id = participantId),              
+    stackgroups = TRUE,                  
+    binwidth = 1,                        
+    method = "histodot") +  
+  coord_cartesian(xlim=c(0,60)) + 
+  scale_y_continuous(NULL,               
+                     breaks = NULL)
+
+p2 <- ggplot(data=low_income_data, 
+       aes(x = Shelter_pct)) +
+  geom_dotplot_interactive(              
+    aes(data_id = participantId),              
+    stackgroups = TRUE,                  
+    binwidth = 1,                        
+    method = "histodot") + 
+  coord_cartesian(xlim=c(0,60)) + 
+  scale_y_continuous(NULL,               
+                     breaks = NULL)
+p3 <- ggplot(data=low_income_data, 
+       aes(x = Food_pct)) +
+  geom_dotplot_interactive(              
+    aes(data_id = participantId),              
+    stackgroups = TRUE,                  
+    binwidth = 1,                        
+    method = "histodot") + 
+  coord_cartesian(xlim=c(25,80)) + 
+  scale_y_continuous(NULL,               
+                     breaks = NULL)
+p4 <- ggplot(data=low_income_data, 
+       aes(x = Education_pct)) +
+  geom_dotplot_interactive(              
+    aes(data_id = participantId),              
+    stackgroups = TRUE,                  
+    binwidth = 1,                        
+    method = "histodot") + 
+  coord_cartesian(xlim=c(0,60)) + 
+  scale_y_continuous(NULL,               
+                     breaks = NULL)
+
+girafe(code = print(p1 / p2 | p3 / p4), 
+       width_svg = 8,
+       height_svg = 8,
+       options = list(
+         opts_hover(css = "fill: #202020;"),
+         opts_hover_inv(css = "opacity:0.2;")
+         )
+       ) 
+
+```
+
+From the above, we could observe that low income family participants are still allocating a larger proportion of their expenses to Recreation expenses, and more so than food.
