@@ -48,15 +48,11 @@ For the purpose of this study, two data sets are provided.
 
 [**FinancialJournal.csv**]{.underline} - The data has 1,513,636 rows and 4 columns.
 
-+---------------+---------------+---------------------------------------------------------------------------------------------------------------------------+
 | Columns       | Data Type     | Description                                                                                                               |
-+===============+===============+===========================================================================================================================+
+|---------------|---------------|---------------------------------------------------------------------------------------------------------------------------|
 | participantId | integer       | Unique ID assigned to each participant                                                                                    |
-+---------------+---------------+---------------------------------------------------------------------------------------------------------------------------+
 | timestamp     | datetime      | The time when the check-in was logged                                                                                     |
-+---------------+---------------+---------------------------------------------------------------------------------------------------------------------------+
 | category      | string factor | A string describing the expense category, one of {"Education", "Food", "Recreation", "RentAdjustment", "Shelter", "Wage"} |
-+---------------+---------------+---------------------------------------------------------------------------------------------------------------------------+
 
 # 3. Data Preparation
 
@@ -447,11 +443,6 @@ waffle_chart <- waffle(waffle_data$proportion*100, rows = 10, size = 1,
 )
 waffle_chart
 
-```
-
-```{r}
-parts=c("Extraction"=397, "Operculectomy"=11, "Medication"=3)
-waffle(parts, row=12, colors=c("#CC0000", "#006600", "#669999"))
 ```
 
 ## Education Level
@@ -1035,7 +1026,7 @@ ggscatterstats(
 ```
 :::
 
-##  4.5 Further analysis - Low Income Family
+## 4.5 Further analysis - Low Income Family
 
 We wanted to further look into visualising the expenditures of low income family, as this could be an area of interest for City Planners with regards to awarding grants.
 
@@ -1045,6 +1036,7 @@ The histogram is plotted with `ggplot` while the coordinated multiple views is a
 
 ::: panel-tabset
 ## Histogram
+
 ```{r}
 # Filter the dataset for low-income participants
 low_income_data <- combined_pivot_data[combined_pivot_data$income_level == "Low", ]
@@ -1071,6 +1063,7 @@ ggplot(low_income_data) +
 ```
 
 ## Coordinated Multiple Views
+
 ```{r}
 p1 <- ggplot(data=low_income_data, 
        aes(x = Recreation_pct)) +
@@ -1124,5 +1117,6 @@ girafe(code = print(p1 / p2 | p3 / p4),
        ) 
 
 ```
+:::
 
 From the above, we could observe that low income family participants are still allocating a larger proportion of their expenses to Recreation expenses, and more so than food.
