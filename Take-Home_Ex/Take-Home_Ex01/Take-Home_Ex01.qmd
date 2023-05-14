@@ -48,11 +48,15 @@ For the purpose of this study, two data sets are provided.
 
 [**FinancialJournal.csv**]{.underline} - The data has 1,513,636 rows and 4 columns.
 
++---------------+---------------+---------------------------------------------------------------------------------------------------------------------------+
 | Columns       | Data Type     | Description                                                                                                               |
-|---------------|---------------|---------------------------------------------------------------------------------------------------------------------------|
++===============+===============+===========================================================================================================================+
 | participantId | integer       | Unique ID assigned to each participant                                                                                    |
++---------------+---------------+---------------------------------------------------------------------------------------------------------------------------+
 | timestamp     | datetime      | The time when the check-in was logged                                                                                     |
++---------------+---------------+---------------------------------------------------------------------------------------------------------------------------+
 | category      | string factor | A string describing the expense category, one of {"Education", "Food", "Recreation", "RentAdjustment", "Shelter", "Wage"} |
++---------------+---------------+---------------------------------------------------------------------------------------------------------------------------+
 
 # 3. Data Preparation
 
@@ -887,7 +891,7 @@ combined_pivot_data %>%
     aesthetics = "interval_color") +
   
   labs(
-    title = "Visualising uncertainty in mean estimates of Total Annual income\nby Education Level",
+    title = "Visualising uncertainty in mean estimates of Expense Ratio\nby Education Level",
     subtitle = "95% and 99% quantiles intervals at mean point",
     x = "Education level",
     y = "Expense Ratio") +
@@ -920,7 +924,7 @@ combined_pivot_data %>%
     aesthetics = "interval_color") +
   
   labs(
-    title = "Visualising uncertainty in mean estimates of Total Annual income\nby Education Level",
+    title = "Visualising uncertainty in mean estimates of Joviality\nby Income Level",
     subtitle = "95% and 99% quantiles intervals at mean point",
     x = "Income level",
     y = "Joviality") +
@@ -953,7 +957,7 @@ combined_pivot_data %>%
     aesthetics = "interval_color") +
   
   labs(
-    title = "Visualising uncertainty in mean estimates of Total Annual income\nby Education Level",
+    title = "Visualising uncertainty in mean estimates of Recreation Expenses\nby Interest Group",
     subtitle = "95% and 99% quantiles intervals at mean point",
     x = "Interest Group",
     y = "Recreation") +
@@ -1057,7 +1061,7 @@ ggplot(low_income_data) +
   geom_histogram(aes(x = Food_pct, fill = "Food"), binwidth = 5, alpha = 0.5) +
   geom_histogram(aes(x = Education_pct, fill = "Education"), binwidth = 5, alpha = 0.5) +
   scale_fill_manual(values = c("Recreation" = "steelblue", "Shelter" = "orange", "Food" = "green", "Education" = "yellow")) +
-  labs(x = "Percentage Spent", y = "Frequency", fill = "Expense Category") +
+  labs(x = "Percentage over Total Expenses", y = "Number of Participants", fill = "Expense Category") +
   ggtitle("Distribution of Percentage Spent on Expenses (Low Income)") +
   theme_minimal()
 ```
