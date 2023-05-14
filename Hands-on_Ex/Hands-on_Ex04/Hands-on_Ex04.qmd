@@ -8,9 +8,7 @@ pacman::p_load(ggstatsplot,tidyverse)
 
 ```{r}
 exam <- read_csv("data/Exam_data.csv")
-````
 
-```{r}
 #set.seed(1234)
 
 gghistostats(
@@ -45,7 +43,6 @@ ggbetweenstats(
   messages = FALSE
 )
 ```
-
 
 ## Visualising models
 

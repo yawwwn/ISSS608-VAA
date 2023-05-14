@@ -492,6 +492,13 @@ plot_ly(data = combined_pivot_data,
 ## Interactive Boxplot
 
 ```{r}
+# Define the income levels based on quantiles
+income_levels <- quantile(combined_pivot_data$total_income, probs = c(0, 0.25, 0.5, 0.75, 1))
+
+# Add a new column with income levels
+combined_pivot_data <- combined_pivot_data %>%
+  mutate(income_level = factor(cut(total_income, breaks = income_levels, include.lowest = TRUE, labels = c("Low", "Medium", "High", "Very High"),ordered = TRUE)))
+
 #Initiating the base plot
 plot_ly(data = combined_pivot_data,
         x = ~AgeGroup,
@@ -512,10 +519,15 @@ plot_ly(data = combined_pivot_data,
          
 #creating dropwdown menus to allow selection of parameters on x-axis 
          updatemenus = list(list(type = 'dropdown',
+                                 direction = 'up',
                                  xref = "paper",
                                  yref = "paper",
                                  xanchor = "left",
-                                 buttons = list(
+                                 yanchor = "top",
+                                 x = 1,
+                                 y = 0,
+                                 buttons = 
+                                   list(
                                    list(method = "update",
                                         args = list(list(x = list(combined_pivot_data$AgeGroup)),
                                                     list(xaxis = list(title = "Age Group"))),
@@ -532,12 +544,35 @@ plot_ly(data = combined_pivot_data,
                                    list(method = "update",
                                         args = list(list(x = list(combined_pivot_data$haveKids)),
                                                     list(xaxis = list(title = "Have Kids"))),
-                                        label = "Have Kids?")
-                              
+                                        label = "Have Kids?"),
+                                   list(method = "update",
+                                        args = list(list(x = list(combined_pivot_data$income_level)),
+                                                    list(xaxis = list(title = "Income Level", categoryorder = "mean descending"))),
+                                        label = "Income Level")
+                            
+                                 )
+                                 ),
+                            list(type = "dropdown",
+                                 xref = "paper",
+                                 yref = "paper",
+                                 xanchor = "left",
+                                 yanchor = "top",
+                                 x = 0.04,
+                                 y = 1.05,
+                                 buttons = list(
+                                   list(method = "update",
+                                        args = list(list(y = list(combined_pivot_data$joviality)),
+                                                    list(yaxis = list(title = "Joviality", categoryorder = "category ascending"))),
+                                        label = "Joviality"),
+                                   list(method = "update",
+                                        args = list(list(y = list(combined_pivot_data$Expense_ratio)),
+                                                    list(yaxis = list(title = "Expense Ratio"))),
+                                        label = "Expense Ratio")
                                    )
                                  )
                             )
          )
 
 ```
+
 
