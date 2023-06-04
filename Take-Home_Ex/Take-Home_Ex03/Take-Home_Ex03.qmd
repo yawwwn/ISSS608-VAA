@@ -1,0 +1,24 @@
+---
+title: "Take-Home_Ex03"
+---
+
+```{r}
+pacman::p_load(jsonlite, tidygraph, ggraph, visNetwork, graphlayouts, ggforce, tidytext, tidyverse)
+
+```
+
+
+mc3_nodes <- as_tibble(mc3_data$nodes) %>%
+# distinct() %>%
+  mutate(country = as.character(country),
+         id = as.character(id),
+         product_services = as.character(product_services),
+         revenue_omu = as.numeric(as.character(revenue_omt)),
+         type = as.character(type)) %>%
+  select(id, country, type, revenue_omu, product_services)
+#don't use unleash or unnest                             
+```
+
+text snesing with tidytext simple word count tokenisation
+
+word teonisation with removing stopwords stemming
