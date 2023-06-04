@@ -234,9 +234,11 @@ mc2_edges <- mc2_edges_merge_shp %>%
          volumeteu, weightkg, valueofgoodsusd, shpcountry, rcvcountry) #select the columns that we want to keep
 ```
 
-#4. Exploratory Data Analysis In this section, we perform some exploratory data analysis (EDA) to further understand the data.
+# 4.Exploratory Data Analysis 
 
-##4.1 Main Graph
+In this section, we perform some exploratory data analysis (EDA) to further understand the data.
+
+## 4.1 Main Graph
 
 ### 4.1.1 HScodes and Importers/Exporters over the years
 
@@ -273,7 +275,8 @@ trade_p2 <- mc2_edges %>%
 hscodes_p1 + trade_p2
 ```
 
-###4.1.2 Trade Records Next, we're interested to find out the number of trade records that occured throughout the years. Particularly, we would like to find out which particular Year or Month have the higher trade records and if there are any temporal patterns. In order to visualise this trend, we've opt to use Heatmap.
+### 4.1.2 Trade Records 
+Next, we're interested to find out the number of trade records that occured throughout the years. Particularly, we would like to find out which particular Year or Month have the higher trade records and if there are any temporal patterns. In order to visualise this trend, we've opt to use Heatmap.
 
 In order to plot a heatmap, we first need to transform the data in the data fram into a data matrix using `data.matrix()`. `heatmaply` is then used to build an interactive heatmap. In our case below, clustering of the transactions throughout the year is not of utmost importance, hence we have remove the clustering of `heatmaply` by setting `dendrogram = "none"`.
 
@@ -311,7 +314,7 @@ heatmaply(heatmap_matrix[, -c(1)], #remove first column
 
 ```
 
-###4.1.3 Weight vs Volume
+### 4.1.3 Weight vs Volume
 
 Next, in order to identify which HSCodes are of particular meaning, we plotted a scatterplot of the median weight of the HSCodes vs median Value of goods to observe if there are any particular insights that could be drawn. This is plotted following the assumption that HSCodes with highest value and lowest weight would be more incentivising for companies to partake in illegal trading.
 
@@ -344,7 +347,7 @@ g <- ggplot(hscodes_breakdown, aes(x = avg_weight, y = avg_value, text = tooltip
 ggplotly(g)
 ```
 
-###4.1.4 HSCodes Breakdown
+### 4.1.4 HSCodes Breakdown
 
 Next, we look to explore and visualise the different types of HSCodes for the trade records, in a bid to understand which HSCodes are most widely used. In order to do so, we will use a Treemap visualisation.
 
@@ -360,9 +363,7 @@ Next, as there are over 4000 unique HSCodes every year which might not be useful
 ## Static
 
 ```{r}
-library(devtools)
-install_github("timelyportfolio/d3treeR")
-library(d3treeR)
+
 
 #creating a dataframe appropriate for treemap visualtions
 hscodes_breakdown <- mc2_edges %>%
@@ -389,22 +390,31 @@ hscode_tm <- treemap(hscodes_breakdown_top10,
                      )
 ```
 
-## Interative
+## Interactive
 
 ```{r}
+library(devtools)
+#install_github("timelyportfolio/d3treeR")
+library(d3treeR)
+
 d3tree(hscode_tm,rootname = "HSCodes" )
 ```
 :::
 
 From the above, it can be observe the HSCode Chapter 3 represented the highest number of trade records for the dataset. This could mean that trade records under this Chapter is of particular importance (could mean a commodity like fishes, food, etc.), hence this Chapter could be of particular interest in following analysis.
 
-#5. Creating Main Graph
+# 5. Creating Main Graph
 
-Before we proceed with graph visualisation and analysis, we'd need to prepare the graph data, such as the nodes and edges data. ##5.1 Preparing edges data table
+Before we proceed with graph visualisation and analysis, we'd need to prepare the graph data, such as the nodes and edges data. 
 
-Based on the EDA performed in previous section, we will filter the large dataset by HSCode_2digits = 30 and Year = 2030 in order to deepdive further into the interactions between the different nodes.
+## 5.1 Preparing edges data table
+
+Based on the EDA performed in previous section, we will filter the large dataset by HSCode_2digits = 30 and Year = 2030 in order to deep dive further into the interactions between the different nodes.
 
 ```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
 # filter the edges dataframe to only include the edges that are in the year 2030 and the hscode is 30
 mc2_edges_aggregated <- mc2_edges %>%
   filter(hscode_2digits == "30" & Year == "2034") %>%
@@ -415,13 +425,17 @@ mc2_edges_aggregated <- mc2_edges %>%
   ungroup()  # ungroup the dataframe
 ```
 
-##5.2 Preparing nodes data Next, we will prepare a new nodes data table that is derived from the source and target fields of *mc2_edges_aggregrated* data table to ensure that the nodes in the nodes data table include all the source and target values of the edges table.
+## 5.2 Preparing nodes data 
+Next, we will prepare a new nodes data table that is derived from the source and target fields of *mc2_edges_aggregrated* data table to ensure that the nodes in the nodes data table include all the source and target values of the edges table.
 
 In below code chunk, we extract the source values and target values from *mc2_edges_aggregated* data table separately, combined them, and then obtain the unique values using `distinct()`.
 
 Lastly, we filter the original *mc2_nodes* data table based on this new list, instead of using this new list as the node data so as to still retain the attributes of the nodes which are only available in *mc2_nodes*.
 
 ```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
 # extract the source column from the edges dataframe and rename it to id1
 id1 <- mc2_edges_aggregated %>%
   select(source) %>%
@@ -438,30 +452,26 @@ mc2_nodes_extracted <- mc2_nodes %>%
   filter(id %in% mc2_nodes_list$id)
 ```
 
-##5.3 Build tidy graph data model
+## 5.3 Build tidy graph data model
 
 Below code chunk is used to build the tidy graph data model using `tbl_graph()` function.
 
 ```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
 # create a graph from the nodes and edges dataframes
 mc2_graph <- tbl_graph(nodes = mc2_nodes_extracted,
                        edges = mc2_edges_aggregated,
                        directed = TRUE)
 ```
 
-#6. Visualisation and Analysis
+# 6. Visualisation and Analysis
 
-##6.1 Plotting of trade interactions using Eigenvector Centrality
+## 6.1 Plotting of trade interactions using Eigenvector Centrality
 
 As there are still a huge number of edges and nodes, we will focus only on the top 10% nodes based on their eigenvecotr centrality score. The eigenvector centrality score is first computed within *mc2_graph*, and the `quantile` function is used to extract the top 10 percentile of nodes based on the eigenvector centrality score. In addition, to visualise if there are any community among the nodes, we use community detection algorithms built in `tidygraph` package. In particular, we used `group_edge_betweenness()` function to identify groups or communities within a network where nodes are more densely connected within the same group than with nodes in other groups. `visNetwork()` is then use to create an interactive graph. For better visualisation, the top 5 percentile of nodes by Eigenvector centrality score are distinctly coloured.
 
-::: callout-tip
-Eigenvector centrality (computed using `centrality_eigen()` function from `tidygraph`) is a measure of the influence or importance of a node in a network. It takes into account both the node's direct connections and the connections of its connected partners. This would allow us to observe which company has the highest level of influence in the trade network.
-
-Betweenness centrality (computed using `centrality_betweenness()` function from `tidygraph`) is also a relevant centrality measure especially for trade networks. It is calculated by counting the number of shortest paths that pass through that node, and hence is useful to see which companies are critical connectors within the network, which could indicate them being intermediaries or brokers in the shipping network.
-
-A similar plot as done with Betweenness Centrality measure, however, most of the nodes have 0 betweenness centrality score, which could indicate that within this HSCode, the nodes mostly connect with each other. Hence, we will focus more on eigenvector centrality measure.
-:::
 
 ```{r}
 # add a column to the graph that contains the eigen centrality of each node
@@ -546,6 +556,14 @@ From the above, we could observe that the nodes with the higher eigenvector valu
 
 -   They belong in the same community (Community = 1)
 
+::: callout-tip
+Eigenvector centrality (computed using `centrality_eigen()` function from `tidygraph`) is a measure of the influence or importance of a node in a network. It takes into account both the node's direct connections and the connections of its connected partners. This would allow us to observe which company has the highest level of influence in the trade network.
+
+Betweenness centrality (computed using `centrality_betweenness()` function from `tidygraph`) is also a relevant centrality measure especially for trade networks. It is calculated by counting the number of shortest paths that pass through that node, and hence is useful to see which companies are critical connectors within the network, which could indicate them being intermediaries or brokers in the shipping network.
+
+A similar plot as done with Betweenness Centrality measure, however, most of the nodes have 0 betweenness centrality score, which could indicate that within this HSCode, the nodes mostly connect with each other. Hence, we will focus more on eigenvector centrality measure.
+:::
+
 ## 6.2 Communities within the network
 
 Given the plot from the above graph generated 251 communities, most of each are isolated communities and does not provide much insights, we will further filter the data. In particular, we will filter by HSCode = 306170, the HSCode with the highest number of trade records.
@@ -593,7 +611,7 @@ g <- subgraph_hscode %>%
 g + theme_graph() + theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5))
 ```
 
-##6.3 Temporal Graph of Top Nodes
+## 6.3 Temporal Graph of Top Nodes
 
 To further observe the temporal patterns of the network, we further filter the nodes by the few observable nodes identified in 6.1. Next, we further filter the HSCode by 306170. Lastly, using \``gganimate`, we plot an animated graph that shows the changes in edges over the years, from Year 2028 to Year 2034.
 
@@ -640,12 +658,14 @@ g <- mc2_graph_topnodes %>%
   ggraph(layout = "fr") +  
   geom_edge_link(alpha=0.3, arrow =arrow(type = "closed")) +
   scale_edge_width(range = c(0.1, 10)) +
-  geom_node_point(aes(size = centrality_eigen(), color = ifelse(id %in% top_10_percentile_nodes, "red","grey")),show.legend = FALSE) +  
+  geom_node_point(aes(size = centrality_eigen(), color = ifelse(id %in% top_10_percentile_nodes, "red","grey")),show.legend = FALSE) +
+  ggtitle("Interactions of Top Nodes by Year: {closest_state}") +
   geom_node_text(aes(label = ifelse(centrality_eigen() >= quantile(centrality_eigen(),0.95), id_num, "")), size = 3, nudge_y = 0,fontface = "bold")  #only labelling the top 5 percentile of nodes
 
 
   
 animated_graph <- g +
+  theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5)) +
   transition_states(Year, transition_length = 1, state_length = 1) +
   enter_fade() +  # Fade in nodes for current year
   exit_fade()  # Fade out nodes for previous years
@@ -653,10 +673,13 @@ animated_graph <- g +
 animate(animated_graph, fps = 10, duration = 10)
 ```
 
-#7 Additional Bundles In the same steps in Section 3, in this section, we'll perform the same loading and data wrangling of the bundled data. ##7.1.1 Loading the data
+# 7 Additional Bundles 
+In the same steps in Section 3, in this section, we'll perform the same loading and data wrangling of the bundled data. 
+
+## 7.1.1 Loading the data
 
 ```{r}
-#| code-fold: true
+#| code-fold: false
 MC2_carp <- fromJSON("data/bundles/carp.json")
 MC2_catfish <- fromJSON("data/bundles/catfish.json")
 MC2_chub_mackerel <- fromJSON("data/bundles/chub_mackerel.json")
@@ -671,10 +694,15 @@ MC2_shark <- fromJSON("data/bundles/shark.json")
 MC2_tuna <- fromJSON("data/bundles/tuna.json")
 ```
 
-##7.1.2 Data Wrangling Similarly, we create the same tibble dataframe for each for the bundle. ::: panel-tabset \# Carp
+## 7.1.2 Data Wrangling 
+Similarly, we create the same tibble dataframe for each for the bundle. 
+
+::: panel-tabset 
+
+## Carp
 
 ```{r}
-#| code-fold: true
+#| code-fold: false
 MC2_carp_nodes <-as_tibble(MC2_carp$nodes) %>%
   select(id,shpcountry,rcvcountry)
 MC2_carp_edges <-as_tibble(MC2_carp$links) %>%
@@ -682,20 +710,20 @@ MC2_carp_edges <-as_tibble(MC2_carp$links) %>%
          volumeteu, weightkg, generated_by)
 ```
 
-#Catfish
+## Catfish
 
 ```{r}
-#| code-fold: true
+#| code-fold: false
 MC2_catfish_nodes <-as_tibble(MC2_catfish$nodes) %>%
   select(id,shpcountry,rcvcountry)
 MC2_catfish_edges <-as_tibble(MC2_catfish$links) %>%
   select(source,target,arrivaldate, hscode,valueofgoods_omu,generated_by) #missing volumeteu, weightkg
 ```
 
-#Chub Mackerel
+## Chub Mackerel
 
 ```{r}
-#| code-fold: true
+#| code-fold: false
 MC2_chub_mackerel_nodes <-as_tibble(MC2_chub_mackerel$nodes) %>%
   select(id,shpcountry,rcvcountry)
 MC2_chub_mackerel_edges <-as_tibble(MC2_chub_mackerel$links) %>%
@@ -703,10 +731,10 @@ MC2_chub_mackerel_edges <-as_tibble(MC2_chub_mackerel$links) %>%
          volumeteu, weightkg,generated_by)
 ```
 
-#Cod2
+## Cod2
 
 ```{r}
-#| code-fold: true
+#| code-fold: false
 MC2_cod2_nodes <-as_tibble(MC2_cod2$nodes) %>%
   select(id,shpcountry,rcvcountry)
 MC2_cod2_edges <-as_tibble(MC2_cod2$links) %>%
@@ -714,10 +742,10 @@ MC2_cod2_edges <-as_tibble(MC2_cod2$links) %>%
          volumeteu, weightkg,generated_by)
 ```
 
-#Herring
+## Herring
 
 ```{r}
-#| code-fold: true
+#| code-fold: false
 MC2_herring_nodes <-as_tibble(MC2_herring$nodes) %>%
   select(id,shpcountry,rcvcountry)
 MC2_herring_edges <-as_tibble(MC2_herring$links) %>%
@@ -725,10 +753,10 @@ MC2_herring_edges <-as_tibble(MC2_herring$links) %>%
          volumeteu, weightkg,generated_by)
 ```
 
-#Lichen
+## Lichen
 
 ```{r}
-#| code-fold: true
+#| code-fold: false
 MC2_lichen_nodes <-as_tibble(MC2_lichen$nodes) %>%
   select(id,shpcountry,rcvcountry)
 MC2_lichen_edges <-as_tibble(MC2_lichen$links) %>%
@@ -736,20 +764,20 @@ MC2_lichen_edges <-as_tibble(MC2_lichen$links) %>%
          volumeteu, weightkg,generated_by)
 ```
 
-#Mackerel
+## Mackerel
 
 ```{r}
-#| code-fold: true
+#| code-fold: false
 MC2_mackerel_nodes <-as_tibble(MC2_mackerel$nodes) %>%
   select(id,shpcountry,rcvcountry)
 MC2_mackerel_edges <-as_tibble(MC2_mackerel$links) %>%
   select(source,target,arrivaldate, hscode,valueofgoods_omu,generated_by) #missing volumeteu, weightkg
 ```
 
-#Pollock
+## Pollock
 
 ```{r}
-#| code-fold: true
+#| code-fold: false
 MC2_pollock_nodes <-as_tibble(MC2_pollock$nodes) %>%
   select(id,shpcountry,rcvcountry)
 MC2_pollock_edges <-as_tibble(MC2_pollock$links) %>%
@@ -757,10 +785,10 @@ MC2_pollock_edges <-as_tibble(MC2_pollock$links) %>%
          volumeteu, weightkg,generated_by)
 ```
 
-#Salmon_wgl
+## Salmon_wgl
 
 ```{r}
-#| code-fold: true
+#| code-fold: false
 MC2_salmon_wgl_nodes <-as_tibble(MC2_salmon_wgl$nodes) %>%
   select(id,shpcountry,rcvcountry)
 MC2_salmon_wgl_edges <-as_tibble(MC2_salmon_wgl$links) %>%
@@ -768,10 +796,10 @@ MC2_salmon_wgl_edges <-as_tibble(MC2_salmon_wgl$links) %>%
          volumeteu, weightkg,generated_by)
 ```
 
-#Salmon
+## Salmon
 
 ```{r}
-#| code-fold: true
+#| code-fold: false
 MC2_salmon_nodes <-as_tibble(MC2_salmon$nodes) %>%
   select(id,shpcountry,rcvcountry)
 MC2_salmon_edges <-as_tibble(MC2_salmon$links) %>%
@@ -779,10 +807,10 @@ MC2_salmon_edges <-as_tibble(MC2_salmon$links) %>%
          volumeteu, weightkg,generated_by)
 ```
 
-#Shark
+## Shark
 
 ```{r}
-#| code-fold: true
+#| code-fold: false
 MC2_shark_nodes <-as_tibble(MC2_shark$nodes) %>%
   select(id,shpcountry,rcvcountry)
 MC2_shark_edges <-as_tibble(MC2_shark$links) %>%
@@ -790,10 +818,10 @@ MC2_shark_edges <-as_tibble(MC2_shark$links) %>%
          volumeteu, weightkg,generated_by)
 ```
 
-#Tuna
+## Tuna
 
 ```{r}
-#| code-fold: true
+#| code-fold: false
 MC2_tuna_nodes <-as_tibble(MC2_tuna$nodes) %>%
   select(id,shpcountry,rcvcountry)
 MC2_tuna_edges <-as_tibble(MC2_tuna$links) %>%
@@ -802,10 +830,13 @@ MC2_tuna_edges <-as_tibble(MC2_tuna$links) %>%
 
 :::
 
-##7.1.3 Preparing edges data In below code chunk, we combined all the 12 bundles into a combined edge data table to facilitate further analysis.
+## 7.1.3 Preparing edges data 
+In below code chunk, we combined all the 12 bundles into a combined edge data table to facilitate further analysis.
 
 ```{r}
-#| code-fold: true
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
 bundle_edges <- bind_rows(MC2_carp_edges,MC2_chub_mackerel_edges,
                         MC2_cod2_edges,MC2_herring_edges,MC2_lichen_edges,
                         MC2_pollock_edges,MC2_salmon_wgl_edges,
@@ -818,8 +849,8 @@ bundle_edges <- bind_rows(MC2_carp_edges,MC2_chub_mackerel_edges,
   mutate(hscode = as.factor(hscode))
 ```
 
-#8. Bundles EDA 
-##8.1 Bundle analysis
+# 8. Bundles EDA 
+## 8.1 Bundle analysis
 From below, it can be observed that the bundles output records only have data from 2033-2035, and where only the year 2034 do all the bundle outputs have data. In addition, different bundles have differing number of HSCodes.
 
 ```{r}
@@ -853,7 +884,7 @@ hscode_p2 <- bundle_edges %>%
 
 record_p1 + hscode_p2
 ```
-##8.2 HSCode Breakdown
+## 8.2 HSCode Breakdown
 Using similar approach from Section 4, we also breakdown the HSCodes for the combined bundled graph data. Similarly, it could be observed that in the bundled data, HSCode Chapter 30 also has the highest record count.
 ```{r}
 #treemap of hscodes
@@ -881,7 +912,7 @@ hscode_tm <- treemap(bundle_hscodes_top10,
                      title.legend = "Median ValueOfGoods (USD)"
                      )
 ```
-#9. Bundles comparison
+# 9. Bundles comparison
 
 Next, based on EDA, we know that Year 2034 is the only year where all bundles have data and HSCode Chapter 30 has the highest number of trade records, hence we'll filter the combined data by these 2 metrics. 
 
