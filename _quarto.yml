@@ -47,6 +47,8 @@ website:
             href: "Take-Home_Ex/Take-Home_Ex01/Take-Home_Ex01.html"
           - text: "Take-Home Exercise 2"
             href: "Take-Home_Ex/Take-Home_Ex02/Take-Home_Ex02_2.html"
+          - text: "Take-Home Exercise 3"
+            href: "Take-Home_Ex/Take-Home_Ex03/Take-Home_Ex03.html"            
       - section: "In-Class Exercise"
         contents: 
           - text: "In-Class Exercise 4"

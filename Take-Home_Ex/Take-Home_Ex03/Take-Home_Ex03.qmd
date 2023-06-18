@@ -1,24 +1,792 @@
 ---
-title: "Take-Home_Ex03"
+title: "Take Home Exercise 2"
+subtitle: "Mini Challenge 2 of VAST Challenge 2023"
+author: "Thng Yao Wen"
+date: 2023-05-23
+date-modified: "`r Sys.Date()`"
+format:
+  html:
+    code-fold: true
+    code-summary: "Show the code"
+execute:
+  warning: false
 ---
 
+# 1. Background
+
+FishEye International, a non-profit focused on countering illegal, unreported, and unregulated (IUU) fishing, has been given access to an international finance corporation's database on fishing related companies. In the past, FishEye has determined that companies with anomalous structures are far more likely to be involved in IUU (or other "fishy" business). FishEye has transformed the database into a knowledge graph. It includes information about companies, owners, workers, and financial status. FishEye is aiming to use this graph to identify anomalies that could indicate a company is involved in IUU.
+
+With reference to [Mini-Challenge 3](https://vast-challenge.github.io/2023/MC3.html) of [VAST Challenge 2023](https://vast-challenge.github.io/2023/) visual analytics approach, this analysis seek to help FishEye better understand fishing business anomalies.
+
+In particular, we'll seek to use visual analytics to identify anomalies in the business groups present in the knowledge graph. In addition, we'll also attempt to develop a visual analytics process to find similar businesses and group them.
+
+# 2. Data
+
+***`MC3.json`*** - It is the main knowledge graph that contains the international finance corporation's database on fishing relating companies. It is an **undirected** multi-graph that contains 27,622 nodes and 24,038 edges. Below are the attributes:
+
+-   Node Attributes
+
+    | Attributes       | Description                                                                                  |
+    |--------------------|----------------------------------------------------|
+    | type             | Type of nodes. Possible values include company, person                                       |
+    | Country          | Country associated with the entity. This can be a full country or a two-letter country code. |
+    | product_services | Description of product services that the "id" node does.                                     |
+    | revenue_omu      | Operating revenue of the "id" node in Oceanus Monetary Units.                                |
+    | id               | Identifier of the node is also the name of the entry.                                        |
+
+-   Edge Attributes
+
+    | Attributes | Description           |
+    |------------|-----------------------|
+    | type       | Type of edges         |
+    | source     | ID of the source node |
+    | target     | ID of the target node |
+
+# 3. Data Preparation
+
+## 3.1 Install R Packages
+
+The R packages are installed using `pacman::p_load()`. Below is a list of main packages installed:
+
+-   `jsonlite`: Working with JSON data in R.
+
+-   `tidygraph`: Creating and manipulating tidy graph objects.
+
+-   `tidyverse`: Collection of data manipulation and visualization packages.
+
+-   `ggraph`: Creating customizable network visualizations.
+
+-   `visNetwork`: Interactive network visualizations.
+
+-   `graphlayouts`: Graph layout algorithms for network graphs.
+
+-   `ggforce`: Extending ggplot2 with additional plot components.
+
+-   `tidytext`: Text mining and analysis in a tidy format.
+
+-   `skimr`: Compact summary statistics and visualizations for data.
+
+-   `treemap`: Creating treemaps for hierarchical data.
+
+-   `ggdist`: Probabilistic visualizations with ggplot2.
+
+-   `wordcloud`: Creating word clouds for text visualization.
+
+-   `RColorBrewer`: Color palettes for data visualization.
+
+-   `tm`: Text mining and preprocessing.
+
+-   `udpipe`: Natural language processing functions.
+
+-   `lattice`: Creating conditioned plots and trellis displays.
+
+-   `stringr`: String manipulation functions.
+
 ```{r}
-pacman::p_load(jsonlite, tidygraph, ggraph, visNetwork, graphlayouts, ggforce, tidytext, tidyverse)
-
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
+pacman::p_load(jsonlite, tidygraph, tidyverse, ggraph, ggiraph, visNetwork, graphlayouts, ggforce, tidytext, skimr, treemap, ggdist, wordcloud, RColorBrewer, tm, udpipe, lattice, stringr, wordcloud2)
 ```
 
+::: callout-tip
+While `tidytext` is a popular R package for text mining, `udpipe` is a good lightweight package that can enrich it with NLP output out of the box, which could be useful for better text analytics.
+:::
 
+## 3.2 Loading Data
+
+As the dataset provided is in `json` format, `fromJSON` function from `jsonlite` package will be used to import the data. The Main Graph will be imported first, followed by the individual bundles.
+
+```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
+mc3_data <- fromJSON("data/MC3.json")
+```
+
+## 3.3 Data Wrangling
+
+### 3.3.1 Tibble Dataframe
+
+Below code chunks are used to extract the *nodes* and *edges* data tables from the *mc3_data* list object and saving the outputs in a tibble data frame object named *mc3_nodes* and *mc3_edges* respectively.
+
+[***Nodes***]{.underline}
+
+```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
+#Extracting Nodes
 mc3_nodes <- as_tibble(mc3_data$nodes) %>%
-# distinct() %>%
-  mutate(country = as.character(country),
-         id = as.character(id),
-         product_services = as.character(product_services),
-         revenue_omu = as.numeric(as.character(revenue_omt)),
-         type = as.character(type)) %>%
   select(id, country, type, revenue_omu, product_services)
-#don't use unleash or unnest                             
+glimpse(mc3_nodes)
 ```
 
-text snesing with tidytext simple word count tokenisation
+```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
+mc3_nodes <- mc3_nodes %>%
+  distinct() %>% # Remove duplicate rows
+  mutate(country = as.character(country),             # Convert to character type
+         id = as.character(id),                       # Convert to character type
+         product_services = as.character(product_services),   # Convert to character type
+         revenue_omu = ifelse(is.na(revenue_omu), 0, revenue_omu),
+         type = as.character(type)                    # Convert to character type
+  ) %>%
+  select(id,country,type,revenue_omu,product_services)
 
-word teonisation with removing stopwords stemming
+```
+
+::: callout-tip
+The `select()` function is part of the `dplyr` package and is used to select specific columns as well as re-organise the sequence of the table. In addition, as many of the revenue_omu data is missing, `coalesce()` is used to replace NAs in the revenue_omu column with 0 before converting it to numeric type.
+:::
+
+Below is datatable of the mc3_nodes.
+
+```{r}
+DT::datatable(mc3_nodes)
+```
+
+[***Edges***]{.underline}
+
+```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
+#Extracting edges
+mc3_edges <- as_tibble(mc3_data$links) %>% 
+  distinct() %>% # Remove duplicate rows
+  mutate(source = as.character(source), # Convert to character type
+         target = as.character(target), # Convert to character type
+         type = as.character(type)) %>% # Convert to character type
+  rename(from = source,
+         to = target) %>% #ensure compatibility with `tidygraph` functions
+  group_by(from, to, type) %>%
+    summarise(weights = n()) %>%
+  filter(from!=to) %>% #to ensure that no record with similar source and target.
+  ungroup()
+
+```
+
+Below is datatable of the mc3_edges.
+
+```{r}
+DT::datatable(mc3_edges)
+```
+
+# 4. Exploratory Data Analysis (EDA)
+
+In this section, we'll do a series of exploratory data visualisation to better understand the data sets.
+
+## 4.1 Type
+
+We'll first plot a chart to explore the attribute *type* that is found in both nodes and edges.
+
+```{r}
+mc3_nodes_type <- mc3_nodes %>% #new datatable
+  group_by(type) %>%
+  summarize(count = n()) %>%
+  ungroup()
+
+mc3_nodes_type$tooltip <-c(paste0( #hover tooltip
+  "Count: ", mc3_nodes_type$count))
+
+
+p2<- ggplot(data = mc3_nodes_type,
+       aes(x = type , y=count , fill= type)) +
+  geom_col_interactive(aes(tooltip = mc3_nodes_type$tooltip)) +
+  scale_fill_brewer(palette="Accent") +
+  labs(title = "Distribution of Types in relationship nodes",
+       x = "Type", y= "Count") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        panel.grid = element_blank())
+
+girafe(ggobj = p2, 
+       width_svg = 8,                         
+       height_svg = 8*0.618,
+       options = list(
+         opts_hover(css = "fill: #202020;"),
+         opts_hover_inv(css = "opacity:0.2;")
+         )
+       ) 
+```
+
+```{r}
+#| echo: false
+
+mc3_edges_type <- mc3_edges %>% #new datatable
+  group_by(type) %>%
+  summarize(count = n()) %>%
+  ungroup()
+
+mc3_edges_type$tooltip <-c(paste0( #hover tooltip
+  "Count: ", mc3_edges_type$count))
+
+
+p1 <- ggplot(data = mc3_edges_type,
+       aes(x = type , y=count , fill= type)) +
+  geom_col_interactive(aes(tooltip = mc3_edges_type$tooltip)) +
+  scale_fill_brewer(palette="Accent") +
+  labs(title = "Distribution of Types in relationship edges",
+       x = "Type", y= "Count") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        panel.grid = element_blank())
+
+girafe(ggobj = p1, 
+       width_svg = 8,                         
+       height_svg = 8*0.618,
+       options = list(
+         opts_hover(css = "fill: #202020;"),
+         opts_hover_inv(css = "opacity:0.2;")
+         )
+       ) 
+```
+
+Two observations can be made here:
+
+-   There are more beneficial owners and company contacts in the *edges* table compared to the *nodes* table. These could due to missing data, where the nodes within the *edges* table are not found and completed within the *nodes* table.
+
+-   The *nodes* table includes *type* "company" whereas the *edges* table does not. This is reasonable since *edges* table describes the relationship whereas *nodes* describes more of the type of the entity/individual.
+
+## 4.2 Missing company data
+
+To further explore the differences between the number of beneficial owners and company contacts, we explore further into the *edges* table.
+
+In below code, we extract the unique nodes from the *mc3_edges* table and perform an `anti_join` with the *mc3_nodes* table to identify the nodes that do not match with it. As seen below, there are about 29,241 such nodes which are not found in *mc3_nodes* table, and hence do not have the relevant attributes such as *revenue_omu*, *product_services*, etc.
+
+```{r}
+id1 <- mc3_edges %>%
+  select(from) %>%
+  rename(id = from)
+id2 <- mc3_edges %>%
+  select(to) %>%
+  rename(id = to)
+mc3_nodes_unmatched <- rbind(id1, id2) %>%
+  distinct() %>%
+  anti_join(mc3_nodes,
+            by = "id")
+DT::datatable(mc3_nodes_unmatched)
+
+```
+
+## 4.3 Country
+
+```{r}
+# Plot the counts using a bar chart
+
+country_count <- mc3_nodes %>% #new datatable
+  group_by(country) %>%
+  summarize(count = n(), sort=TRUE) %>%
+  ungroup()%>%
+  arrange(desc(count)) %>%
+  head(30)
+
+country_count$tooltip <-c(paste0( #hover tooltip
+  "Count: ", country_count$count))
+
+
+p3<- ggplot(data = country_count,
+       aes(x = reorder(country, count) , y=count)) +
+  geom_col_interactive(aes(tooltip = country_count$tooltip)) +
+  scale_fill_brewer(palette="Accent") +
+  coord_flip()  +
+  labs(title = "Distribution of Companies in Countries",
+       x = "Country", y= "Count") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        panel.grid = element_blank())
+
+girafe(ggobj = p3, 
+       width_svg = 8,                         
+       height_svg = 8*0.618,
+       options = list(
+         opts_hover(css = "fill: #202020;"),
+         opts_hover_inv(css = "opacity:0.2;")
+         )
+       ) 
+
+```
+
+As seen from above, a disproportionately high number of companies belong to the *country* ZH, at 19,851; whereas the country with the next highest number of companies is Oceanus, which is only at 2,137.
+
+## 4.4 Company Relationship
+
+Next, we look to explore and visualise the relationships that each company has. That is, to find out how many relationships (be it ownership or contacts) does each nodes have. In order to do so, we will use a Treemap visualisation.
+
+We first perform steps to manipulate and prepare a dataframe that is appropriate for treemap visualisation:
+
+-   Using the `mc3_edges` dataframe, we group the ***to*** column and count the number of unique ***from*** values
+-   Aggregate the number of companies that each nodes owned or are a contact to, and then finally aggregating both.
+
+Lastly, we use `treemap` to create a static treemap.
+
+Below is the code to prepare the data under a `summary_data` dataframe. As the dataset is too huge for visualisation, below we'll filter by top 2500.
+
+```{r}
+#Group the data by the 'to' company and count the number of unique 'from' companies
+summary_data <- mc3_edges %>%
+  group_by(to) %>%
+  rename(id = to) %>%
+  summarize(companies_owned = sum(type == "Beneficial Owner"),
+            companies_contact = sum(type == "Company Contacts"),
+            total_relation = companies_owned+companies_contact)%>%
+  arrange(desc(total_relation)) %>% #sort total_relation by descending
+  head(2500) #top 2500
+```
+
+```{r}
+DT::datatable(summary_data)
+```
+
+[**Static Treemap**]{.underline}
+
+```{r}
+node_treemap <- treemap(summary_data,
+                     index=c("id"),
+                     vSize="companies_owned", #configure size by number of trade records
+                     vColor="companies_contact", #configure color by median value of the trade records by HSCode 
+                     type = "value",
+                     title="Relationships Breakdown",
+                     title.legend = "Companies Contact"
+                     )
+
+```
+
+From here, we can observe that most nodes (be it individuals or companies) only have 1 related company. That is, they only either own another company or is a company contacts to another. A few nodes stand out here, particularly Michael Johnson, John Williams, Jennifer Smith and John Smith. These individuals have anomalously high total relationships with other companies. Particularly, they owned from 7-9 companies. In addition, Jennifer Johnson has an anomalously high company contacts relationship to other companies, as observed from the treemap above.
+
+As such, in the network graph below, we'll explore further on the network relationships of these individuals.
+
+# 5. Network Graph
+
+In this section, we'll plot the network graph to visualise the different relationships of the nodes.
+
+## 5.1 Setting up graph data
+
+Using the `mc3_edges` table we have created previously, we will prepare a new nodes data table that is derived from the from and to fields of *mc3_edges* data table to ensure that the nodes in the nodes data table include all the from and to values of the edges table. As noted in 4.2, many of the nodes in *mc3_edges* are not found in the *mc3_nodes* table.
+
+In addition, we'll create a new attribute called *new_type* to specify a different type for the nodes, based on the relationship observed in the edges table. That is, if the node is both a beneficial owner and a contact contact to other nodes, he will be identified so. If he is only a beneficial owner or only a company contact, he will be listed as such respectively.
+
+```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
+
+id1 <- mc3_edges %>% # extract the source column from the edges dataframe and rename it to id1
+  select(from) %>%
+  rename(id = from)
+
+id2 <- mc3_edges %>% # extract the target column from the edges dataframe and rename it to id2
+  select(to) %>%
+  rename(id = to)
+
+mc3_nodes1 <- rbind(id1, id2) %>% # combine the id1 and id2 dataframes 
+  distinct() %>% # remove the duplicates
+  left_join(mc3_nodes, by = "id",
+            unmatched = "drop") %>%
+  left_join(summary_data, by = "id") %>%
+  replace_na(list(companies_owned = 0, companies_contact = 0, total_relation = 0))%>% #replace NA values with 0
+  mutate(new_type = ifelse(companies_owned>0 & companies_contact>0, "Beneficial Owner + Company Contact",ifelse(companies_owned>0 & companies_contact==0, "Beneficial Owner", ifelse(companies_owned==0 & companies_contact>0, "Company Contact", type)))) #create new attributes for node
+```
+
+## 5.1.1 Build tidy graph data model
+
+Below code chunk is used to build the tidy graph data model using `tbl_graph()` function. In addition, we also calculated several centrality measures in order to better visualise in subsequent graphs.
+
+```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
+# create a graph from the nodes and edges dataframes
+mc3_graph <- tbl_graph(nodes = mc3_nodes1,
+                       edges = mc3_edges,
+                       directed = FALSE) %>%
+  mutate(betweenness_centrality = centrality_betweenness(), #additional node attribute
+         closeness_centrality = ifelse(is.nan(centrality_closeness()),0,centrality_closeness()), #additional node attribute
+         degree_centrality = centrality_degree())  %>% #additional node attribute
+  mutate(community = as.factor(group_fast_greedy(weights = weights))) #community measure
+
+```
+
+# 5.1.2 Nodes and Edges dataframe
+
+```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
+nodes_df <- mc3_graph %>%
+  activate(nodes) %>%
+  as_tibble() %>%
+  rename(name = id) %>%
+  mutate(id=row_number())
+
+edges_df <- mc3_graph %>%
+  activate(edges) %>%
+  as_tibble()
+```
+
+## 5.2 Company ownership and contacts
+
+In below graph, we filter the nodes to only view the top 0.5 percentile by betweenness_centrality. Betweenness quantifies the extent to which a node lies on the shortest paths between other nodes in the network. In this case, it fers to ndoes that are more influentianl in controlling the flow of information in the network (i.e. nodes that are hgiher influence).
+
+In addition, we highlight the nodes that have high relations{style="color:#026873;"} (those identified in 4.5). The relationships - beneficial owner{style="color:#D94F04;"} & company contacts{style="color:#3E7C59;"} are represented by the edges.
+
+```{r}
+#Manual configuration of the nodes' attribute for graph visualisation
+nodes_df2 <- nodes_df %>%
+  filter(betweenness_centrality >= quantile(betweenness_centrality, 0.995))  %>%
+  mutate(color = ifelse(total_relation <= 7 , "#4B4952","#026873"),
+         title = paste0("<br><span style='color: black;'><b>",id, ": ", name,"<br></b>","Companies Owned:", companies_owned,"</br>", "Companies Contact to:", companies_contact,"</span><p>"),
+         label = name,
+         size = ifelse(total_relation == 0,10,total_relation*10))
+
+edges_df2 <- edges_df %>%
+  mutate(color = ifelse(type == 'Beneficial Owner', "#D94F04","#3E7C59")
+         )
+
+visNetwork(nodes_df2,
+           edges_df2,
+           main = '<b>Company Relationship</b>',
+           height = "500px", width = "100%") %>%
+   visIgraphLayout(layout = 'layout_nicely', type = "full", smooth = TRUE  # Adjust the repulsion force
+) %>%
+  visPhysics(solver = "repulsion", repulsion = list(nodeDistance = 300, centralGravity = 0.5))  %>% # to resolve overlapping nodes
+  visEdges(color = list(highlight = "#7C3238"),
+           width = 4,
+           arrows = "from"
+           )%>%
+  visNodes(
+    borderWidth = 1,
+    shadow = TRUE,
+  ) %>%
+  visOptions(highlightNearest = TRUE,
+             nodesIdSelection = TRUE,
+             selectedBy ="new_type", #allow filtering of nodes based on Community
+             ) %>%
+  visLayout(randomSeed = 123) # to have always the same network
+```
+
+From the above graph, it could be observed that most of the nodes with high betweenness centrality involves company ownerships, rather than company contacts.
+
+## 5.3. Top Company Ownership
+
+In this section, we explore deeper in those nodes with high relations. Below graph filters only the nodes and edges related to these high relation edges. They correspond to a different color {style="color:#026873;"}. Similarly to previous section, the relationships - beneficial owner{style="color:#D94F04;"} & company contacts{style="color:#3E7C59;"} are represented by the edges. The sizes of the nodes are determined based on their degree of centrality.
+
+```{r}
+#Manual configuration of the nodes' attribute for graph visualisation
+top_nodes_df2 <- nodes_df %>%
+  filter(total_relation >= 7)  %>%
+  select(id)
+
+top_edges_df2 <- edges_df %>%
+  filter(to %in% top_nodes_df2$id)%>%
+  mutate(color = ifelse(type == 'Beneficial Owner', "#D94F04","#3E7C59")
+         )
+
+top_id1 <- top_edges_df2 %>%
+  select(from) %>%
+  rename(id = from)
+top_id2 <- top_edges_df2 %>%
+  select(to) %>%
+  rename(id = to)
+mc3_nodes2 <- rbind(top_id1, top_id2) %>%
+  distinct() %>%
+  left_join(nodes_df, by = "id",
+            unmatched = "drop")
+
+mc3_nodes2 <- mc3_nodes2 %>%
+  mutate(color = ifelse(total_relation>0 ,"#026873", "#4B4952"),
+         title = paste0("<br><span style='color: black;'><b>",id, ": ", name,"<br></b>","Companies Owned:", companies_owned,"</br>", "Companies Contact to:", companies_contact,"</span><p>"),
+         label = name,
+         size = degree_centrality*2)
+
+visNetwork(mc3_nodes2,
+           top_edges_df2,
+            main = '<b>Nodes with most relationships</b>',
+           height = "500px", width = "100%") %>%
+   visIgraphLayout(layout = 'layout_nicely', type = "full", smooth = TRUE) %>%
+  visEdges(color = list(highlight = "#7C3238"),
+           width = 5,
+           arrows = "from"
+           )%>%
+  visNodes(
+    borderWidth = 1,
+    shadow = TRUE,
+  ) %>%
+  visOptions(highlightNearest = TRUE,
+             nodesIdSelection = TRUE
+             #selectedBy ="community", #allow filtering of nodes based on Community
+             ) %>%
+  visLegend(width =0.1, position = "right") %>%
+  visLayout(randomSeed = 123) # to have always the same network   
+```
+
+From above, it can be further observed that John Smith, Jennifer Smith, David Smith and Robert Miller stands out the most, where they all owned companies with large degree of centrality. That is to say, they owned companies that are also owned by many others, or have many business contacts.
+
+In particularly, these include **The Salted Pearl Inc Pelican, Luangwa River Limited Liability Company Holdings, Ocean Quest S.A. de C.V.** and **Bahía de Plata Submarine.**
+
+In the next section, we'll look from a different perspective. We'll now take a look at companies that are owned by other companies/individuals or have other business contacts.
+
+## 5.4. Companies owned by others
+
+In below graph, we identify nodes that have high degree of centrality{style="color:#591C21;"}, and high degree of betweenness (identified by node size), in order to observe which company has analogously large difference from the rest.
+
+```{r}
+#Manual configuration of the nodes' attribute for graph visualisation
+nodes_df2 <- nodes_df %>%
+  filter(betweenness_centrality >= quantile(betweenness_centrality, 0.995))  %>%
+  mutate(color = ifelse(degree_centrality <=quantile(degree_centrality, 0.90) , "#79717A","#591C21"),
+         title = paste0("<b><br><span style='color: black;'>",id, ": ", name,"<br>",companies_owned,"</b></span><p>"),
+         label = name,
+         size = betweenness_centrality/40000
+  )
+
+edges_df2 <- edges_df %>%
+  mutate(color = ifelse(type == 'Beneficial Owner', "#D94F04","#3E7C59")
+         )
+
+visNetwork(nodes_df2,
+           edges_df2,
+           main = '<b>Nodes with most owners or contacts</b>',
+           height = "500px", width = "100%") %>%
+   visIgraphLayout(layout = 'layout_with_fr', type = "full", smooth = TRUE) %>%
+  visEdges(color = list(highlight = "#7C3238"),
+           width = 4,
+           arrows = "from"
+           )%>%
+  visPhysics(solver = "repulsion", repulsion = list(nodeDistance = 300, centralGravity = 0.5))  %>% # to resolve overlapping nodes
+  visNodes(
+    borderWidth = 1,
+    shadow = TRUE,
+  ) %>%
+  visOptions(highlightNearest = TRUE,
+             nodesIdSelection = TRUE,
+             selectedBy ="new_type", #allow filtering of nodes based on Community
+             ) %>%
+  visLayout(randomSeed = 123) # to have always the same network   
+```
+
+From above, **Wave Warriors S.A. de C.V. Express** and **Niger Bend AS Express** stands out the most.
+
+# 6. Analysing Products and Services
+
+In this section, we will perform text analytics on the product_services column of the `mc3_nodes` data in a bid to find similar businesses and group them.
+
+To do so, we will perform text sensing by using the `tidytext` package. As the description of the company are in long string, we would need to perform tokenization to break the string up to individual tokens (which could be an individual word, character or subword). To do so, we use the `unnest_tokens` function from `tidytext` package to tokenize the `product_services` column and create a new data frame called token_nodes with an additional column called "word" that contains the individual tokens.
+
+## 6.1 Text Pre-Processing
+
+### 6.1.1 Tokenization
+
+```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
+token_nodes <- mc3_nodes %>%
+  unnest_tokens(word,
+                product_services)
+```
+
+Next, we plotted a barplot to visualize the top occurrences of the individual tokens.
+
+```{r}
+token_nodes %>%
+  count(word, sort = TRUE) %>% #count the occurrences of each unique word and sort in descending order
+  top_n(15) %>% #selects the top 15 most frequet words
+  mutate(word = reorder(word, n)) %>%  #reorders the words based on their count values (n), ensuring that the plot will display the words in the order of their frequency
+  ggplot(aes(x = word, y = n)) +
+  geom_col(fill = "#004F4D") +
+  xlab(NULL) +
+  scale_y_continuous(expand = c(0, 1)) +  # Sets the x-axis limits to start at 0
+  coord_flip() +
+  labs(x = "Words",
+       y = "Number of Occurences",
+       title = "Occurrences of unique words in Product_services field") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5,face = 'bold'))  # Center the title
+```
+
+From the above, we can observe two things:
+
+1.  There are multiple ambiguous words that are not reasonably related to actual products and services. These include 'character', 0, unknown. It is discovered that some companies have "character(0)" in their product_services, as well as "Unknown". As both do not provide any meaningful insights, they shall be removed.
+2.  There are presence of many words that are irrelevant to our analysis. Hence, such stopwords would be removed.
+
+### 6.1.3 Removing Stop-words and irrelevant works
+
+In below section, we created a list of words to be removed and saved it as *words_to_remove*.In additional, we use the `tm` package to remove stopwords, and additionally performed other pre-processing such as removing numbers and removing punctuations.
+
+```{r}
+words_to_remove <- c("character", "unknown", "products","services")
+
+stopwords_removed <- mc3_nodes %>%
+  mutate(product_services= tolower(product_services) %>%
+           removePunctuation() %>%
+           removeNumbers() %>%
+           removeWords(stopwords("en")))%>%
+  unnest_tokens(word, 
+                product_services) %>%
+  filter(!(word %in% words_to_remove))
+```
+
+```{r}
+freq<-stopwords_removed %>%
+  count(word, sort = TRUE) %>%
+  #top_n(20) %>%
+  mutate(word = reorder(word, n))
+```
+
+```{r}
+freq %>%
+  top_n(20) %>%
+  ggplot(aes(x = word, y = n)) +
+  geom_col(fill = "#004F4D") +
+  xlab(NULL) +
+  scale_y_continuous(expand = c(0, 1)) +  # Sets the x-axis limits to start at 0
+  coord_flip()  +
+  labs(x = "Words",
+       y = "Number of Occurences",
+       title = "Occurrences of unique words in Product_services field \n (after pre-processing)") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5,face = 'bold'))  # Center the title
+```
+
+# 6.2 Word Cloud
+
+For a better visualisation for the different unique words, we use `wordcloud2` to plot a word cloud of the words, where the size of the words corresponds to its frequency.
+
+```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
+set.seed(1234) # for reproducibility 
+wordcloud2(freq)
+
+#suppressWarnings(wordcloud(words = freq$word, freq = freq$n, min.freq = 2, max.words=200, random.order=FALSE, rot.per=0.35, colors=brewer.pal(8, "Dark2")))
+```
+
+::: callout-tip
+`wordcloud2` allows more advanced visualisation compared to `wordcloud`
+:::
+
+From above, we can observe the top words that occurred in the product_services of the nodes.
+
+## 6.3 Fishing Industry
+
+Following the wordcloud, we'll proceed to categorise nodes that are related to fishing, given obvious keywords. These includes fish, seafood, salmon, tuna, shellfish, shrimp, seafoods and squid. Companies that contain these words will be categorise as *fishing industry*.
+
+```{r}
+mc3_nodes_category <- mc3_nodes %>%
+  mutate(Category = ifelse(grepl("fish|seafood|salmon|tuna|shellfish|shrimp|seafoods|squid", tolower(product_services)), "fishing industry", ifelse(grepl("unknown|character\\(0\\)", tolower(product_services)),"Unidentified","non-fishing industry")))
+
+category_counts <- mc3_nodes_category %>%
+  count(Category, sort = TRUE)
+
+p3 <- ggplot(category_counts, 
+             aes(x = Category, y = n, fill = Category)) +
+  geom_col_interactive(aes(tooltip = mc3_nodes_type$tooltip)) +
+  scale_fill_brewer(palette="Dark2") +
+  labs(title = "Industry Category Breakdown",
+       x = "Industry", y= "Count") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        panel.grid = element_blank())
+
+
+girafe(ggobj = p3, 
+       width_svg = 8,                         
+       height_svg = 8*0.618,
+       options = list(
+         opts_hover(css = "fill: #202020;"),
+         opts_hover_inv(css = "opacity:0.2;")
+         )
+       ) 
+```
+
+With the above identification, there are only 6,227 fishing companies identified, and 8,608 companies which are identifiable (with relevant words) but have yet to be classified. In the next section, we'll attempt to classify them.
+
+## 6.3 Non-Fishing companies
+
+### 6.3.1 NLP Trained Model
+
+For this section, we will use `udpipe` package's pre-trained UDPipe NLP model for english language to analyse the words.
+
+```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
+ud_model <- udpipe_download_model(language = "english")
+ud_model <- udpipe_load_model(ud_model$file_model)
+```
+
+In below code, we use the trained model on our data. Below is a glimpse of the data.
+
+```{r}
+#| code-fold: false
+#| fig-height: 3.5
+#| fig-width: 7
+mc3_nodes_nonfishing <- mc3_nodes_category %>%
+  filter(Category == 'non-fishing industry')
+
+x <- udpipe_annotate(ud_model, x = mc3_nodes_nonfishing$product_services)
+x <- as.data.frame(x)
+glimpse(x)
+```
+
+### 6.3.2 Most Occuring Nouns
+
+Next, we filter the tokens that are nouns to better visualise which nouns are the most occurring.
+
+```{r}
+stats <- subset(x, upos %in% "NOUN" & !token %in% words_to_remove )
+stats <- txt_freq(x = stats$lemma)
+stats$key <- factor(stats$key, levels = rev(stats$key))
+barchart(key ~ freq, data = head(stats, 30), col = "cadetblue", main = "Most occurring nouns", xlab = "Frequency of occurence")
+
+```
+
+### 6.3.3 Co-occurences
+
+As we're also interested in multi-word expressions, that is by lookingat word co-occurences within each sentence and that are close in the neighbourhood of one another.
+
+```{r}
+## Collocation (words following one another)
+words_breakdown <- keywords_collocation(x = x, 
+                             term = "token", group = c("doc_id", "paragraph_id", "sentence_id"),
+                             ngram_max = 4)
+## Co-occurrences: How frequent do words occur in the same sentence, in this case only nouns or adjectives
+words_breakdown <- cooccurrence(x = subset(x, upos %in% c("NOUN")), 
+                     term = "lemma", group = c("sentence_id"))
+## Co-occurrences: How frequent do words follow one another
+words_breakdown <- cooccurrence(x = x$lemma, 
+                     relevant = x$upos %in% c("NOUN"))
+## Co-occurrences: How frequent do words follow one another even if we would skip 2 words in between
+words_breakdown <- cooccurrence(x = x$lemma, 
+                     relevant = x$upos %in% c("NOUN") & !x$token %in% words_to_remove, skipgram = 2)
+head(words_breakdown)
+```
+
+### 6.3.4 Visualisation of Co-occurences
+
+Next, we visualise the co-occurences for the top 200 most frequent co-occuring nouns.
+
+```{r}
+
+wordnetwork <- head(words_breakdown, 200)
+wordnetwork_graph <- wordnetwork %>% 
+  as_tbl_graph()
+
+
+ggraph(wordnetwork_graph, layout = "fr") + 
+  geom_edge_link(alpha = 0.5, aes(width = cooc, edge_alpha = cooc)) + 
+  geom_node_point() + 
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1, size = 3, color = "#184C78", check_overlap = TRUE) +
+  labs(title = "Noun Occurrences for non-fishing industry") +  # Add a title to the plot
+  theme(plot.title = element_text(hjust = 0.5))  # Center the title
+
+```
+
+# 7. Next Steps
+
+The next steps for this analysis include further breaking down the categories and identifying them for each of the companies.

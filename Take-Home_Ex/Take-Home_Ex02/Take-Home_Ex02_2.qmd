@@ -31,7 +31,7 @@ The trade data are stored in below files:
         -   Node Attributes
 
             | Attributes | Description                                                    |
-            |-------------------------|-----------------------------------------------|
+            |----------------|--------------------------------------------------------|
             | id         | Name of the company that originated (or received) the shipment |
             | shpcountry | Country the company most often associated with when shipping   |
             | rcvcountry | Country the company most often associated with when receiving  |
@@ -40,7 +40,7 @@ The trade data are stored in below files:
         -   Edge Attributes
 
             | Attributes       | Description                                                   |
-            |-------------------------|-----------------------------------------------|
+            |------------------|------------------------------------------------------|
             | arrivalDate      | Date the shipment arrived at port in YYYY-MM-DD format        |
             | hscode           | Country the company most often associated with when shipping  |
             | valueofgoods_omu | Country the company most often associated with when receiving |
@@ -234,7 +234,7 @@ mc2_edges <- mc2_edges_merge_shp %>%
          volumeteu, weightkg, valueofgoodsusd, shpcountry, rcvcountry) #select the columns that we want to keep
 ```
 
-# 4.Exploratory Data Analysis 
+# 4.Exploratory Data Analysis
 
 In this section, we perform some exploratory data analysis (EDA) to further understand the data.
 
@@ -275,7 +275,8 @@ trade_p2 <- mc2_edges %>%
 hscodes_p1 + trade_p2
 ```
 
-### 4.1.2 Trade Records 
+### 4.1.2 Trade Records
+
 Next, we're interested to find out the number of trade records that occured throughout the years. Particularly, we would like to find out which particular Year or Month have the higher trade records and if there are any temporal patterns. In order to visualise this trend, we've opt to use Heatmap.
 
 In order to plot a heatmap, we first need to transform the data in the data fram into a data matrix using `data.matrix()`. `heatmaply` is then used to build an interactive heatmap. In our case below, clustering of the transactions throughout the year is not of utmost importance, hence we have remove the clustering of `heatmaply` by setting `dendrogram = "none"`.
@@ -405,7 +406,7 @@ From the above, it can be observe the HSCode Chapter 3 represented the highest n
 
 # 5. Creating Main Graph
 
-Before we proceed with graph visualisation and analysis, we'd need to prepare the graph data, such as the nodes and edges data. 
+Before we proceed with graph visualisation and analysis, we'd need to prepare the graph data, such as the nodes and edges data.
 
 ## 5.1 Preparing edges data table
 
@@ -425,7 +426,8 @@ mc2_edges_aggregated <- mc2_edges %>%
   ungroup()  # ungroup the dataframe
 ```
 
-## 5.2 Preparing nodes data 
+## 5.2 Preparing nodes data
+
 Next, we will prepare a new nodes data table that is derived from the source and target fields of *mc2_edges_aggregrated* data table to ensure that the nodes in the nodes data table include all the source and target values of the edges table.
 
 In below code chunk, we extract the source values and target values from *mc2_edges_aggregated* data table separately, combined them, and then obtain the unique values using `distinct()`.
@@ -471,7 +473,6 @@ mc2_graph <- tbl_graph(nodes = mc2_nodes_extracted,
 ## 6.1 Plotting of trade interactions using Eigenvector Centrality
 
 As there are still a huge number of edges and nodes, we will focus only on the top 10% nodes based on their eigenvecotr centrality score. The eigenvector centrality score is first computed within *mc2_graph*, and the `quantile` function is used to extract the top 10 percentile of nodes based on the eigenvector centrality score. In addition, to visualise if there are any community among the nodes, we use community detection algorithms built in `tidygraph` package. In particular, we used `group_edge_betweenness()` function to identify groups or communities within a network where nodes are more densely connected within the same group than with nodes in other groups. `visNetwork()` is then use to create an interactive graph. For better visualisation, the top 5 percentile of nodes by Eigenvector centrality score are distinctly coloured.
-
 
 ```{r}
 # add a column to the graph that contains the eigen centrality of each node
@@ -673,8 +674,9 @@ animated_graph <- g +
 animate(animated_graph, fps = 10, duration = 10)
 ```
 
-# 7 Additional Bundles 
-In the same steps in Section 3, in this section, we'll perform the same loading and data wrangling of the bundled data. 
+# 7 Additional Bundles
+
+In the same steps in Section 3, in this section, we'll perform the same loading and data wrangling of the bundled data.
 
 ## 7.1.1 Loading the data
 
@@ -694,11 +696,11 @@ MC2_shark <- fromJSON("data/bundles/shark.json")
 MC2_tuna <- fromJSON("data/bundles/tuna.json")
 ```
 
-## 7.1.2 Data Wrangling 
-Similarly, we create the same tibble dataframe for each for the bundle. 
+## 7.1.2 Data Wrangling
 
-::: panel-tabset 
+Similarly, we create the same tibble dataframe for each for the bundle.
 
+::: panel-tabset
 ## Carp
 
 ```{r}
@@ -827,10 +829,10 @@ MC2_tuna_nodes <-as_tibble(MC2_tuna$nodes) %>%
 MC2_tuna_edges <-as_tibble(MC2_tuna$links) %>%
   select(source,target,arrivaldate, hscode,valueofgoods_omu,generated_by) #missing volumeteu, weightkg
 ```
-
 :::
 
-## 7.1.3 Preparing edges data 
+## 7.1.3 Preparing edges data
+
 In below code chunk, we combined all the 12 bundles into a combined edge data table to facilitate further analysis.
 
 ```{r}
@@ -849,8 +851,10 @@ bundle_edges <- bind_rows(MC2_carp_edges,MC2_chub_mackerel_edges,
   mutate(hscode = as.factor(hscode))
 ```
 
-# 8. Bundles EDA 
+# 8. Bundles EDA
+
 ## 8.1 Bundle analysis
+
 From below, it can be observed that the bundles output records only have data from 2033-2035, and where only the year 2034 do all the bundle outputs have data. In addition, different bundles have differing number of HSCodes.
 
 ```{r}
@@ -884,8 +888,11 @@ hscode_p2 <- bundle_edges %>%
 
 record_p1 + hscode_p2
 ```
+
 ## 8.2 HSCode Breakdown
+
 Using similar approach from Section 4, we also breakdown the HSCodes for the combined bundled graph data. Similarly, it could be observed that in the bundled data, HSCode Chapter 30 also has the highest record count.
+
 ```{r}
 #treemap of hscodes
 bundle_hscodes <- bundle_edges %>%
@@ -912,14 +919,14 @@ hscode_tm <- treemap(bundle_hscodes_top10,
                      title.legend = "Median ValueOfGoods (USD)"
                      )
 ```
+
 # 9. Bundles comparison
 
-Next, based on EDA, we know that Year 2034 is the only year where all bundles have data and HSCode Chapter 30 has the highest number of trade records, hence we'll filter the combined data by these 2 metrics. 
+Next, based on EDA, we know that Year 2034 is the only year where all bundles have data and HSCode Chapter 30 has the highest number of trade records, hence we'll filter the combined data by these 2 metrics.
 
 In order ot view the graph of the different bundles in a meaningful way, we use `facet_nodes()` to spread the nodes out based on their attributes - in this case, the bundle name.
 
 To do so, the nodes columns need to be unique, otherwise the resulting facet graph will have missing edges. Hence, we create new columns *source_bundle* and *target_bundle* using `paste()` to concatenate the *source*/*target* columns with *generated_by* column.
-
 
 ```{r}
 #Create new combined edge list
